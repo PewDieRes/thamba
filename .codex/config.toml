@@ -1,0 +1,11 @@
+# Project defaults for Thamba. Per-task overrides use profiles (-p architect|builder|visual|scribe).
+model = "gpt-6.2-sol"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "xhigh"
+review_model = "gpt-6.2-astra"
+web_search = "cached"
+
+[agents]
+default_subagent_model = "gpt-6.2-sol"
+default_subagent_reasoning_effort = "medium"
+max_concurrent_threads_per_session = 4
