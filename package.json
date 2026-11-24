@@ -13,7 +13,7 @@
     "lint": "next typegen && eslint . --max-warnings 0",
     "format": "prettier --write",
     "typecheck": "next typegen && tsc --noEmit && tsc --project tsconfig.core.json",
-    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:boundaries": "depcruise --config dependency-cruiser.config.cjs src",
     "test:unit": "vitest run --project unit --coverage",
     "test:contract": "vitest run --project contract --passWithNoTests",
     "test:integration": "vitest run --project integration --passWithNoTests",

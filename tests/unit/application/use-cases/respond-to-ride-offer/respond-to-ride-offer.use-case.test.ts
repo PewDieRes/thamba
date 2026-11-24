@@ -1,9 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  createDemo,
-  dispatchRide,
-  driverCommand,
-} from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, dispatchRide, driverCommand } from '../../demo.fixtures';
 
 test('RespondToRideOffer applies its Demo Town rules', async () => {
   const app = await createDemo();

@@ -7,7 +7,14 @@ import { expect, onTestFinished, test } from 'vitest';
 
 const BOUNDARY_FIXTURE_TIMEOUT_MILLISECONDS = 30_000;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
-const checkBoundaries = join(repository, 'scripts', 'check-boundaries.mjs');
+const cruise = join(
+  repository,
+  'node_modules',
+  'dependency-cruiser',
+  'bin',
+  'dependency-cruise.mjs',
+);
+const config = join(repository, 'dependency-cruiser.config.cjs');
 const serverEntry = 'src/infrastructure/composition/container.ts';
 const serverPage = 'src/app/page.ts';
 const serverWiring = 'export { compose } from "@infrastructure/composition/container";';
@@ -19,16 +26,6 @@ const fixtureCases = [
       'src/domain/booking.ts':
         'import type { Port } from "@application/ports/port"; export type Booking = Port;',
       'src/application/ports/port.ts': 'export type Port = string;',
-    },
-  },
-  {
-    rule: 'application-stays-in-core',
-    modules: {
-      'src/application/use-cases/quote-fare/quote-fare.use-case.ts':
-        'export { seed } from "./quote-fare.use-case.test";',
-      'src/application/use-cases/quote-fare/quote-fare.use-case.test.ts':
-        'export { seed } from "@infrastructure/memory/seed";',
-      'src/infrastructure/memory/seed.ts': 'export const seed = {};',
     },
   },
   {
@@ -70,7 +67,7 @@ test.each(fixtureCases)(
       writeFileSync(destination, source);
     }
 
-    const result = spawnSync(process.execPath, [checkBoundaries], {
+    const result = spawnSync(process.execPath, [cruise, '--config', config, 'src'], {
       cwd: directory,
       encoding: 'utf8',
     });

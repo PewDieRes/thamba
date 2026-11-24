@@ -1,10 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  createDemo,
-  driverCommand,
-  DRIVER_ONE,
-  inviteInput,
-} from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, driverCommand, DRIVER_ONE, inviteInput } from '../../demo.fixtures';
 
 test('RevokeDriverDevice applies its Demo Town rules', async () => {
   const app = await createDemo();

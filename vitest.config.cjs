@@ -12,10 +12,7 @@ module.exports = defineConfig({
         extends: true,
         test: {
           name: 'unit',
-          include: [
-            `tests/{unit,property}/**/${testFile}`,
-            `src/{domain,application}/**/${testFile}`,
-          ],
+          include: [`tests/{unit,property}/**/${testFile}`],
         },
       },
       {
@@ -33,7 +30,7 @@ module.exports = defineConfig({
     coverage: {
       provider: 'v8',
       include: [domainFiles, applicationFiles],
-      exclude: ['**/*.d.ts', `**/${testFile}`],
+      exclude: ['**/*.d.ts'],
       thresholds: {
         [domainFiles]: { lines: 95, branches: 95, functions: 95, statements: 95 },
         [applicationFiles]: { lines: 90, branches: 90, functions: 90, statements: 90 },

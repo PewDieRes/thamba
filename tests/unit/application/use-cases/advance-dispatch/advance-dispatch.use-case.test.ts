@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createDemo, requestRide } from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, requestRide } from '../../demo.fixtures';
 
 test('AdvanceDispatch applies its Demo Town rules', async () => {
   const app = await createDemo();

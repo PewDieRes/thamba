@@ -1,10 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  createDemo,
-  quoteInput,
-  dispatchRide,
-  DRIVER_ONE,
-} from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, quoteInput, dispatchRide, DRIVER_ONE } from '../../demo.fixtures';
 
 test('GetBookingStatusForRider applies its Demo Town rules', async () => {
   const app = await createDemo();

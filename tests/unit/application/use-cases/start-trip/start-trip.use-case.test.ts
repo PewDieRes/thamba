@@ -1,10 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  createDemo,
-  unwrap,
-  driverCommand,
-  acceptRide,
-} from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, unwrap, driverCommand, acceptRide } from '../../demo.fixtures';
 
 test('StartTrip applies its Demo Town rules', async () => {
   const app = await createDemo();

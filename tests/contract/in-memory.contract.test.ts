@@ -1,6 +1,8 @@
 import { describe } from 'vitest';
-import { createInMemoryContainer } from '@infrastructure/composition/container';
-import { createMemoryTransaction } from '@infrastructure/composition/memory-transaction';
+import {
+  createInMemoryContainer,
+  createMemoryTransaction,
+} from '@infrastructure/composition/container';
 import { MemoryStore } from '@infrastructure/memory/memory-store';
 import { bookingRepositoryContract } from './booking-repository.contract';
 import { rideOfferRepositoryContract } from './ride-offer-repository.contract';

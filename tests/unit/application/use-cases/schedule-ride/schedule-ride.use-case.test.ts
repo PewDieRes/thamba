@@ -1,12 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  createDemo,
-  quoteInput,
-  requestInput,
-  unwrap,
-  NOW_MS,
-  HOUR_MS,
-} from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, quoteInput, requestInput, unwrap, NOW_MS, HOUR_MS } from '../../demo.fixtures';
 
 test('ScheduleRide applies its Demo Town rules', async () => {
   const app = await createDemo();
