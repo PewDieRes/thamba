@@ -1,0 +1,8 @@
+{
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "mutate": ["src/domain/**/*.ts", "!src/domain/**/*.{test,spec,d}.ts"],
+  "vitest": {
+    "configFile": "vitest.config.cjs"
+  }
+}

@@ -1,0 +1,8 @@
+.next/
+.stryker-tmp/
+coverage/
+next-env.d.ts
+playwright-report/
+pnpm-lock.yaml
+reports/
+test-results/

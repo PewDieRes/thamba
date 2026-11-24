@@ -1,0 +1,99 @@
+const js = require('@eslint/js');
+const { defineConfig, globalIgnores } = require('eslint/config');
+const prettier = require('eslint-config-prettier');
+const checkFile = require('eslint-plugin-check-file');
+const globals = require('globals');
+const tseslint = require('typescript-eslint');
+
+const code = '**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx}';
+const typescript = '**/*.{ts,cts,mts,tsx}';
+const defaultExport = {
+  selector:
+    'ExportDefaultDeclaration, ExportSpecifier[exported.name="default"], ExportSpecifier[exported.value="default"]',
+  message: 'Use a named export outside Next.js entry files.',
+};
+const timeAndRandomness = [
+  {
+    selector: 'MemberExpression[object.name="Date"][property.name="now"]',
+    message: 'Pass the current instant into the core.',
+  },
+  {
+    selector: 'NewExpression[callee.name="Date"][arguments.length=0]',
+    message: 'Construct dates from an explicit instant.',
+  },
+  {
+    selector: 'MemberExpression[object.name="Math"][property.name="random"]',
+    message: 'Pass generated values into the core.',
+  },
+];
+
+module.exports = defineConfig(
+  globalIgnores([
+    '.codex/**',
+    '.next/**',
+    'next-env.d.ts',
+    '.stryker-tmp/**',
+    'coverage/**',
+    'reports/**',
+    'playwright-report/**',
+    'test-results/**',
+  ]),
+  { files: [code], extends: [js.configs.recommended] },
+  {
+    files: [typescript],
+    extends: [tseslint.configs.strictTypeChecked],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: __dirname },
+    },
+    rules: { '@typescript-eslint/no-non-null-assertion': 'error' },
+  },
+  {
+    files: ['**/*.{js,cjs,mjs}'],
+    languageOptions: { globals: globals.node },
+  },
+  prettier,
+  {
+    files: [code],
+    plugins: { 'check-file': checkFile },
+    rules: {
+      'check-file/filename-naming-convention': [
+        'error',
+        { [code]: 'KEBAB_CASE' },
+        { ignoreMiddleExtensions: true },
+      ],
+      'max-lines-per-function': ['error', { max: 40, skipBlankLines: true, skipComments: true }],
+      complexity: ['error', 10],
+    },
+  },
+  {
+    files: [code],
+    ignores: [
+      'src/app/**/{page,layout,template,default,error,global-error,loading,not-found,global-not-found,forbidden,unauthorized,route,opengraph-image,twitter-image,icon,apple-icon,sitemap,robots,manifest}.{js,jsx,ts,tsx}',
+      'src/proxy.ts',
+      'next.config.ts',
+      'next-intl.config.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': ['error', defaultExport],
+    },
+  },
+  { files: ['src/**'], rules: { 'no-console': 'error' } },
+  {
+    files: ['src/{application,domain}/**/*'],
+    rules: {
+      'no-restricted-globals': ['error', 'process', 'fetch', 'console', 'performance', 'crypto'],
+      'no-restricted-syntax': ['error', defaultExport, ...timeAndRandomness],
+    },
+  },
+  {
+    files: ['src/domain/**/*'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        defaultExport,
+        ...timeAndRandomness,
+        { selector: ':function[async=true]', message: 'Keep domain rules synchronous.' },
+      ],
+    },
+  },
+);

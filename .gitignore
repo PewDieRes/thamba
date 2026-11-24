@@ -13,3 +13,6 @@ supabase/.temp/
 .DS_Store
 *.log
 docs/posters/*.pdf
+next-env.d.ts
+*.tsbuildinfo
+.stryker-tmp/
