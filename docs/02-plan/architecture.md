@@ -137,9 +137,11 @@ tests/{unit,property,contract,integration,e2e}/
 
 ### Dispatch and Trip lifecycle
 
-- Bookings move from `searching` to `assigned`, `no_driver_found`, `cancelled` or `booking_unavailable`. A Ride offer is pending until accepted, declined, expired or withdrawn. One pending offer per Booking and per Driver allows unrelated Bookings to progress concurrently. A Driver with a pending offer or active Trip is unavailable for a new offer. A Trip starts at acceptance and records pickup, completion or an earlier end. Rejoining the available queue is explicit.
-- The demo starts with FIFO by queue sequence, with a stable ID tie-breaker. Each Booking attempts a Driver at most once. An explicit decline or a timeout ends the turn and sends an available Driver to the tail. Breaks, Coordinator skips with a reason and walk-ups remove the Driver until they mark themselves available and rejoin at the tail. These events withdraw a pending Ride offer and make its Booking due for advancement. An accepted Trip keeps the Driver occupied until the Trip ends. Acceptance removes the Driver from the queue. Cancellation before acceptance withdraws the reservation and restores the Driver's previous position. Cancellation after acceptance ends the Trip and allows the Driver to rejoin at the tail. Each transition records its reason and queue effect.
-- Fallback uses ordered eligible Stands in the same Town and run. The single-Stand demo has an empty alternate list. A Booking with exhausted candidates ends in `no_driver_found`. If remaining candidates are temporarily reserved by other dispatches, it can retry at a bounded due time until the Booking deadline. Booking expiry and offer expiry both win at equality. New offers have a deadline capped by the Booking deadline. Begin testing with 20-second offers, a 90-second dispatch window and a 3-second visible poll, then tune against the seeded runs.
+- Booking states are `scheduled`, `requested`, `offering`, `accepted`, `driver_arrived`, `in_trip`, `completed`, `cancelled_by_rider`, `cancelled_by_driver` and `no_driver_found`. The reasons for `no_driver_found` are `dispatch_deadline`, `booking_unavailable` and `stands_exhausted`. Acceptance creates the active Trip (`TripCreated`). Confirming pickup moves the Booking to `in_trip` and emits `TripStarted`. [Booking state machine](specs/dispatch.md#booking-state-machine)
+- Rank eligible Drivers by ascending `queuedAt`, then by canonical `driverId` in ascending lexicographic order. Each Booking attempts a Driver at most once. The Town can configure the decline policy, which defaults to moving the Driver to the tail. [Fair rotation](specs/dispatch.md#fair-rotation)
+- The Town's offer timeout defaults to 60 seconds. Each offer's `expiresAt` is the earlier of `issuedAt` plus the offer timeout and `dispatchDeadline`. A pending offer closed at or after `expiresAt` is recorded as `expired`. [Ride offer lifecycle](specs/dispatch.md#ride-offer-lifecycle)
+- Scan the capped, ordered Stand list captured at request time within the same Town and run, starting with the original Stand. If the scan finds no eligible Driver, end immediately in `no_driver_found` with `stands_exhausted`. If dispatch reaches `dispatchDeadline` (90 seconds after `requestedAt` by default), it ends in `no_driver_found` with `dispatch_deadline`. [Stand fallback and search deadline](specs/dispatch.md#stand-fallback-and-search-deadline)
+- Begin testing with a 3-second visible poll, then tune against the seeded runs.
 - Each visitor can start an isolated Demo Town run with one fictional Stand and roster. A server-side simulator advances a seed-defined Driver script via the same response, pickup and completion commands. Its trusted actors are limited to synthetic fixtures in that run. Rider polling and the sweep can run due script steps with stable command IDs. Public scenarios include a successful Trip and queue exhaustion. The human-operated PWA path uses a synthetic Driver profile bound with a normal invite.
 
 ## Persistence, auth and trust boundaries
@@ -180,7 +182,7 @@ sequenceDiagram
     Core->>DB: Commit Booking, fare snapshot and initial due time
     App->>Core: AdvanceDispatch
     Core->>DB: Commit Ride offer, queue reservation, signal and push intent
-    Core-->>Rider: Searching
+    Core-->>Rider: Booking in offering state
     DB-->>RT: Committed signal row
     RT-->>Driver: Generic inbox wake-up
     opt Push subscription is active
@@ -192,12 +194,12 @@ sequenceDiagram
     Core-->>Driver: Pickup and deadline
     Driver->>App: Accept with command idempotency key
     App->>Core: RespondToOffer
-    Core->>DB: Commit acceptance, Trip, queue change and wake-up atomically
-    App->>Core: AdvanceDispatch sees assigned Booking
+    Core->>DB: Commit acceptance, Trip creation, queue change and wake-up atomically
+    App->>Core: AdvanceDispatch sees accepted Booking
     Core-->>Driver: Accepted Trip with destination and disclosed fare
     Rider->>App: Poll status or refresh after wake-up
     App->>Core: AdvanceDispatch then GetRiderStatus
-    Core-->>Rider: Assigned Booking and pickup details
+    Core-->>Rider: Accepted Booking and pickup details
 ```
 
 ## Dispatch expiry
