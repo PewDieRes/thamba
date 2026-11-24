@@ -13,7 +13,7 @@
     "lint": "next typegen && eslint . --max-warnings 0",
     "format": "prettier --write",
     "typecheck": "next typegen && tsc --noEmit && tsc --project tsconfig.core.json",
-    "check:boundaries": "depcruise --config dependency-cruiser.config.cjs src",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
     "test:unit": "vitest run --project unit --coverage",
     "test:contract": "vitest run --project contract --passWithNoTests",
     "test:integration": "vitest run --project integration --passWithNoTests",
@@ -25,7 +25,8 @@
     "next-intl": "^4.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

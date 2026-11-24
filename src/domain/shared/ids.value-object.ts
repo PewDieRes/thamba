@@ -5,7 +5,7 @@ import type { Result } from './result';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 declare const ID_BRAND: unique symbol;
 
-type Id<Kind extends string> = string & { readonly [ID_BRAND]: Kind };
+export type Id<Kind extends string> = string & { readonly [ID_BRAND]: Kind };
 
 export type TownId = Id<'Town'>;
 export type DemoRunId = Id<'DemoRun'>;
@@ -19,6 +19,8 @@ export type DriverId = Id<'Driver'>;
 export type BookingId = Id<'Booking'>;
 export type RideOfferId = Id<'RideOffer'>;
 export type TripId = Id<'Trip'>;
+export type FareQuoteId = Id<'FareQuote'>;
+export type EventId = Id<'Event'>;
 export type FareChartId = Id<'FareChart'>;
 export type IdError = DomainError<'invalid_id'>;
 
@@ -78,5 +80,9 @@ export function createStandCoordinatorId(input: unknown): Result<StandCoordinato
 }
 
 export function createSessionSubject(input: unknown): Result<SessionSubject, IdError> {
+  return createId(input);
+}
+
+export function createFareQuoteId(input: unknown): Result<FareQuoteId, IdError> {
   return createId(input);
 }
