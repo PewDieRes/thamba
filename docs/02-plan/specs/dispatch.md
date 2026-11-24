@@ -60,7 +60,7 @@ State changes, reservations, Trip records, queue effects and event records commi
 
 ## Ride offer lifecycle
 
-Each Town can configure a positive offer timeout, defaulting to **60 seconds**. At creation set `expiresAt = min(issuedAt + townOfferTimeout, dispatchDeadline)`. Each offer retains its deadline through config changes. A pending offer is actionable only while `now < expiresAt`. The time guard applies even before Dispatch records its expiry. When a command closes a pending record at or after `expiresAt`, record `expired`. Earlier closure uses the outcome below. A response that discovers a due pending offer reports expiry to the Driver even if it advances the Booking. All four outcomes are terminal for the offer.
+Each Town can configure a positive offer timeout, defaulting to **60 seconds**. At creation set `expiresAt = min(issuedAt + townOfferTimeout, dispatchDeadline)`. Each offer retains its deadline through config changes. While dispatch remains open, a pending offer is actionable at `now < expiresAt` and due at `now >= expiresAt`. The time guard applies even before Dispatch records its expiry. On `ExpireOffer(offerId)`, the caller applies B6 and O4 atomically before replanning from the original Stand. If dispatch must close, the caller applies B12. When a command closes a pending record at or after `expiresAt`, record `expired`. Earlier closure uses the outcome below. A response that discovers a due pending offer reports expiry to the Driver even if it advances the Booking. All four outcomes are terminal for the offer.
 
 | ID | From → to | Trigger and actor | Guards and effects | Domain event |
 | --- | --- | --- | --- | --- |
@@ -95,9 +95,25 @@ Record reservation, release, queue position and membership changes in the rotati
 
 - At request time, capture the ordered search list and dispatch time limit for the Booking. The list starts with the original Stand, followed by the configured neighbouring Stands that serve the pickup area in the same Town and run, with each Stand listed once. Search at most the first **N** distinct Stands, including the original Stand. The Town can set **N** to a positive integer. If the Town supplies no cap, use the full list. The one-Stand demo has an empty alternate list.
 - Set `dispatchDeadline = requestedAt + T minutes`. The Town can configure positive **T**, defaulting to **1.5 minutes (90 seconds)**. At `now >= dispatchDeadline`, close dispatch, expire any pending offer and use `no_driver_found` with `dispatch_deadline`.
-- Each search in `requested` scans the captured list in order, applying current Stand eligibility and rotation. If a Stand has no eligible Driver, continue to the next one. Stop at the first eligible Driver and issue one offer. If an offer closes and dispatch continues, the next search starts from the original Stand with the same attempt history.
-- If the scan finds no eligible Driver across the capped list, finish immediately with `no_driver_found` and `stands_exhausted`. A Driver with a pending offer for another Booking is ineligible, so the scan proceeds to the next Stand if all Drivers at the current Stand are unavailable.
+- Each search in `requested` scans the captured list once in order, applying current Stand eligibility and rotation. Continue past any Stand without an eligible Driver, including when every Driver there has a pending offer for another Booking. Stop at the first eligible Driver and return `OfferTo(driverId)` for the original Stand or `EscalateToStand(standId, driverId)` for a neighbouring Stand. The caller issues one offer via B5 from the same serialized snapshot. If an offer closes and dispatch continues, the next search starts from the original Stand with the same attempt history.
+- If the scan finds no eligible Driver across the capped list, return `GiveUp(stands_exhausted)`. The caller applies B11 immediately.
 - In `no_driver_found`, show the original Stand Coordinator's configured number to the Rider. In a demo run, show the labelled synthetic contact. If booking authority has lapsed, show it as an administrative contact and present the current Town capability reason.
+
+## Dispatch planner contract
+
+The planner evaluates `requested` and `offering` Bookings with Town authority sampled at `now` within the serialized decision. It returns `GiveUp(dispatch_deadline)` at `now >= dispatchDeadline`. Before the deadline it returns `GiveUp(booking_unavailable)` if Town authority has lapsed. The caller applies B11 for `requested` or B12 for `offering`.
+
+While dispatch remains open, the planner returns `WaitForResponse(expiresAt)` for an actionable pending offer or `ExpireOffer(offerId)` for a due pending offer. The caller applies B6 and O4 atomically on `ExpireOffer(offerId)` before replanning from the original Stand.
+
+Each search scans the captured list once. The planner returns `OfferTo(driverId)` for the first eligible Driver at the original Stand or `EscalateToStand(standId, driverId)` for the first eligible Driver at the first eligible neighbouring Stand. Both results authorize one allocation from the same serialized snapshot. If the scan finds no eligible Driver, the planner returns `GiveUp(stands_exhausted)`.
+
+| Result | Decision |
+| --- | --- |
+| `OfferTo(driverId)` | Allocate to the selected Driver at the original Stand. |
+| `EscalateToStand(standId, driverId)` | Allocate to the selected Driver at the specified neighbouring Stand. |
+| `WaitForResponse(until)` | Wait for the pending offer's response until `expiresAt`. |
+| `ExpireOffer(offerId)` | Expire the due offer and return the Booking to `requested` before replanning. |
+| `GiveUp(reason)` | End dispatch with `dispatch_deadline`, `booking_unavailable` or `stands_exhausted`. |
 
 ## Invariants
 
@@ -138,17 +154,17 @@ Generate sequences of commands, interleavings, clock advances, policy changes an
 
 | Invariant | Generated cases and property |
 | --- | --- |
-| I1 | Vary modes, profiles, licence windows and policy edits, including start and end equality. Every request, allocation and acceptance has authority at its own decision time. |
+| I1 | Vary modes, profiles, licence windows and policy edits, including start and end equality. Every request, allocation and acceptance has authority at its own decision time. In `requested` and `offering`, the planner returns `GiveUp(booking_unavailable)` when authority has lapsed before the dispatch deadline. |
 | I2 | Generate distinct pickup and destination markers and inspect every Driver-facing pending-offer read, notification, event and retained payload. Only the authorized accepted Trip can reveal the protected fields. |
-| I3 | Interleave advances, responses and cancellations on each Booking. Count pending records and match them to `offering` after each commit. |
-| I4 | Race allocations and acceptances across Bookings and Stands. Count pending offers and active Trips per Driver and total Trips per Booking. |
-| I5 | Generate accept and expiry attempts before, at and after both deadlines, including omitted sweeps and retries. No offer at or beyond either deadline has a successful acceptance. |
+| I3 | Interleave advances, responses and cancellations on each Booking. Count pending records and match them to `offering` after each commit. With dispatch open, check that `WaitForResponse(expiresAt)` leaves the pending offer in place and `ExpireOffer(offerId)` commits B6 and O4 together before the next search. |
+| I4 | Race allocations and acceptances across Bookings and Stands. Count pending offers and active Trips per Driver and total Trips per Booking. For both allocation results, check that each authorizes one allocation from the same serialized snapshot and that a conflict triggers reevaluation. |
+| I5 | Generate accept and expiry attempts before, at and after both deadlines, including omitted sweeps and retries. No offer at or beyond either deadline has a successful acceptance. With dispatch open, the planner changes from `WaitForResponse(expiresAt)` to `ExpireOffer(offerId)` at expiry equality. |
 | I6 | Change Fare charts between quotation, confirmation, scheduled activation, fallback and Trip progress. Compare every fare-bearing view and Trip to the immutable request snapshot. |
 | I7 | Generate commands against terminal Bookings, including stale sweeps and late responses. States remain terminal and cancelled Bookings carry no pending offer or active Trip. |
-| I8 | Generate tied ordering times, mixed eligibility, Stand changes and historical attempts. Compare each issued offer to the minimum eligible Driver in the earliest eligible Stand in a reference model. |
-| I9 | Generate availability changes, reservations, withdrawals, declines, expiry, completion and explicit returns. Check queue membership, `queuedAt` and tail calculations against the rotation rules. In a balanced replay, first-offer counts differ by at most one. |
+| I8 | Generate tied ordering times, mixed eligibility, Stand changes and historical attempts. Compare `OfferTo(driverId)`, `EscalateToStand(standId, driverId)` and each issued offer to the minimum eligible Driver in the earliest eligible Stand in a reference model. After expiry, check that the next search starts at the original Stand and retains attempt history. |
+| I9 | Generate availability changes, reservations, withdrawals, declines, expiry, completion and explicit returns. Check queue membership, `queuedAt` and tail calculations against the rotation rules. Check that `ExpireOffer(offerId)` releases the reservation and applies expiry rotation before replanning. In a balanced replay, first-offer counts differ by at most one. |
 | I10 | Generate scheduled times, lead times, early and delayed advances, cancellations and duplicate activations. Check the captured due time, request count, and absence of work before activation. |
-| I11 | Generate neighbour lists, caps, reserved Drivers, deadlines and out-of-scope Stands. Check search order and bounds, closeout under advancement, and the contact shown for `no_driver_found`. |
+| I11 | Generate neighbour lists, caps, reserved Drivers, deadlines and out-of-scope Stands. Check that each search scans the capped list once at most and returns `GiveUp(stands_exhausted)` when no eligible Driver is found. At and after the dispatch deadline, check `GiveUp(dispatch_deadline)` in both planner states, including when authority has lapsed or an offer is due. Check closeout and the contact shown for `no_driver_found`. |
 | I12 | Replay identical and mismatched commands after interleavings and lost responses. Check stable committed results, unique event identities and absence of partial effects. |
 
 ### Transition examples
@@ -161,14 +177,14 @@ For each example, assert the final states and the exact domain events listed for
 | B2 | Confirm an immediate request with an owned current quote. The Booking is `requested` with the disclosed fare frozen. A stale quote requires reconfirmation. |
 | B3 | With a 12:00 pickup and default lead, an advance at 11:39:59 leaves the schedule unchanged. At 11:40 it becomes `requested` with the confirmed fare. In a delayed replay, a first advance at 11:42 uses 11:42 as `requestedAt`. |
 | B4 | Schedule while licensed, then activate at expiry of the licence. End with `booking_unavailable` and no `BookingRequested`. |
-| B5, O1 | Two eligible Drivers tie on `queuedAt`. Offer to the lower `driverId` with a 60-second default deadline, shortened when the remaining dispatch window is smaller. |
-| B6, O3, O4, O5 | Run separate cases for a timely decline, unanswered offer at its deadline, and Driver removal before expiry. The Booking returns to `requested`. The decline applies the default or configured penalty, the expiry sends an online Driver to the tail, and the removed Driver leaves the queue. Each Driver remains excluded from this Booking. |
+| B5, O1 | Two eligible Drivers at the original Stand tie on `queuedAt`. Expect `OfferTo(driverId)` with the lower `driverId` and allocate one offer with a 60-second default deadline, shortened when the remaining dispatch window is smaller. |
+| B6, O3, O4, O5 | Run separate cases for a timely decline, unanswered offer at its deadline, and Driver removal before expiry. For the unanswered offer, expect `WaitForResponse(expiresAt)` before expiry and `ExpireOffer(offerId)` at equality while dispatch is open. The Booking returns to `requested`. The decline applies the default or configured penalty, the expiry sends an online Driver to the tail atomically with the return to `requested` before replanning from the original Stand, and the removed Driver leaves the queue. Each Driver remains excluded from this Booking. |
 | B7, O2 | The offered Driver accepts one tick before expiry. The Booking and offer become `accepted`, the Trip is created, `queuedAt` is cleared and the authorized Trip reveals destination and fare. At equality, the offer instead expires. |
 | B8 | The assigned Driver reports arrival from `accepted` and moves to `driver_arrived`. A different Driver is rejected. |
 | B9 | The assigned Driver confirms pickup from `driver_arrived` and moves to `in_trip`. A pickup before arrival is rejected. |
 | B10 | The assigned Driver completes an `in_trip` Booking. The slot is released and `queuedAt` stays unset until explicit rejoin, which appends the Driver once. |
-| B11 | Put all Drivers at the original Stand on offers for other Bookings, leave the first neighbour empty, and place an eligible Driver at the second neighbour. With N set to two, end with `stands_exhausted` and show the original Coordinator number. With N set to three, issue B5 at the second neighbour. Also test deadline equality and loss of authority before allocation. |
-| B12 | Reach the dispatch deadline while a pending offer is capped by it. Expire the offer and end with `dispatch_deadline`. In a second case, let the licence lapse before the offer deadline. Withdraw the offer and end with `booking_unavailable`. |
+| B11 | Put all Drivers at the original Stand on offers for other Bookings, leave the first neighbour empty, and place an eligible Driver at the second neighbour. With N set to two, expect `GiveUp(stands_exhausted)`, apply B11 and show the original Coordinator number. With N set to three, expect `EscalateToStand(standId, driverId)` for the second neighbour and issue one B5 offer from the same serialized snapshot. Also expect `GiveUp(booking_unavailable)` when authority lapses before the deadline and `GiveUp(dispatch_deadline)` at deadline equality even if authority has lapsed. |
+| B12 | Reach the dispatch deadline while a pending offer is capped by it and Town authority has lapsed. Expect `GiveUp(dispatch_deadline)` and expire the offer atomically with closeout. If the licence lapses before both deadlines, expect `GiveUp(booking_unavailable)` and withdraw the offer atomically with closeout. If the offer is already due when authority lapses before the dispatch deadline, expect `GiveUp(booking_unavailable)` and expire the offer atomically with closeout. |
 | B13 | Parameterize Rider cancellation over all six source states. In `offering`, assert withdrawal and retained queue time before expiry, or expiry and tail placement at equality. In the three assigned states, assert cancellation of the active Trip and release of the slot. |
 | B14 | Parameterize assigned Driver cancellation over `accepted`, `driver_arrived` and `in_trip`. End the Trip and release the slot. Trying it as a pending-offer recipient is rejected. |
 
