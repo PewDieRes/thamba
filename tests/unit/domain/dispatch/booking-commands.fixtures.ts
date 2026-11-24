@@ -16,13 +16,13 @@ export const runBookingCommand = {
     ),
   closeOffer: (booking, now) => booking.closeOffer(f.decline, now),
   acceptOffer: (booking, now) => booking.acceptOffer(f.accept, now),
-  reportArrival: (booking, now) => booking.reportArrival(f.driverId, now),
-  confirmPickup: (booking, now) => booking.confirmPickup(f.driverId, now),
-  completeTrip: (booking, now) => booking.completeTrip(f.driverId, now),
+  reportArrival: (booking, now) => booking.reportArrival(f.driverSession, now),
+  confirmPickup: (booking, now) => booking.confirmPickup(f.driverSession, now),
+  completeTrip: (booking, now) => booking.completeTrip(f.driverSession, now),
   endSearch: (booking, now) => booking.endSearch(f.search, now),
   endOffering: (booking, now) => booking.endOffering(f.cannotBook, now),
   cancelByRider: (booking, now) => booking.cancelByRider(f.riderId, now),
-  cancelByDriver: (booking, now) => booking.cancelByDriver(f.driverId, now),
+  cancelByDriver: (booking, now) => booking.cancelByDriver(f.driverSession, now),
 } satisfies Record<
   BookingCommand,
   (booking: Booking, now: Instant) => ReturnType<Booking['activate']>

@@ -1,5 +1,7 @@
 import { expect, it } from 'vitest';
 import { Booking } from '@domain/dispatch/booking';
+import { leaveDriverQueue } from '@domain/dispatch/driver-queue-entry';
+import { revokeDevice } from '@domain/identity/driver-device';
 import { err } from '@domain/shared/result';
 import * as f from './booking.fixtures';
 
@@ -23,15 +25,30 @@ it('checks allocation authority, dispatch deadline, Stand scope and offer expiry
 
 it.each([
   [{ offerId: f.otherOfferId }, 2, 'offer_mismatch'],
-  [{ driverId: f.otherDriverId }, 2, 'driver_mismatch'],
-  [{ isOnlineAtStand: false }, 2, 'driver_not_reserved'],
-  [{ hasReservation: false }, 2, 'driver_not_reserved'],
+  [{ driver: f.otherDriverSession }, 2, 'driver_mismatch'],
+  [{ entry: leaveDriverQueue(f.reservedEntry) }, 2, 'driver_not_reserved'],
+  [{ entry: { ...f.reservedEntry, driverId: f.otherDriverId } }, 2, 'driver_not_reserved'],
+  [{ entry: { ...f.reservedEntry, standId: f.otherStandId } }, 2, 'driver_not_reserved'],
+  [{ entry: { ...f.reservedEntry, reservation: f.otherOfferId } }, 2, 'driver_not_reserved'],
   [f.cannotBook, 2, 'booking_unavailable'],
   [{}, f.MINUTE_IN_MILLISECONDS, 'offer_expired'],
   [{}, f.DEFAULT_DISPATCH_IN_MILLISECONDS, 'offer_expired'],
-] as const)('checks acceptance prerequisites %j at %i ms', (patch, timeInMilliseconds, code) => {
+] as const)('checks acceptance prerequisites %o at %i ms', (patch, timeInMilliseconds, code) => {
   expect(f.makeOffering().acceptOffer({ ...f.accept, ...patch }, f.at(timeInMilliseconds))).toEqual(
     err({ code }),
+  );
+});
+
+it('requires a matching session subject and active binding for acceptance', () => {
+  const now = f.at(2);
+  const booking = f.makeOffering();
+  const device = f.unwrap(revokeDevice(f.driverSession.device, now));
+  expect(booking.acceptOffer({ ...f.accept, driver: { ...f.driverSession, device } }, now)).toEqual(
+    err({ code: 'DEVICE_REVOKED' }),
+  );
+  const driver = { ...f.driverSession, subject: f.otherSubject };
+  expect(booking.acceptOffer({ ...f.accept, driver }, now)).toEqual(
+    err({ code: 'session_subject_mismatch' }),
   );
 });
 
@@ -67,16 +84,16 @@ it('checks Rider and assigned Driver ownership', () => {
   expect(f.makeRequested().cancelByRider(f.otherRiderId, now)).toEqual(
     err({ code: 'rider_mismatch' }),
   );
-  expect(f.makeAccepted().reportArrival(f.otherDriverId, now)).toEqual(
+  expect(f.makeAccepted().reportArrival(f.otherDriverSession, now)).toEqual(
     err({ code: 'driver_mismatch' }),
   );
-  expect(f.makeArrived().confirmPickup(f.otherDriverId, now)).toEqual(
+  expect(f.makeArrived().confirmPickup(f.otherDriverSession, now)).toEqual(
     err({ code: 'driver_mismatch' }),
   );
-  expect(f.makeInTrip().completeTrip(f.otherDriverId, now)).toEqual(
+  expect(f.makeInTrip().completeTrip(f.otherDriverSession, now)).toEqual(
     err({ code: 'driver_mismatch' }),
   );
-  expect(f.makeAccepted().cancelByDriver(f.otherDriverId, now)).toEqual(
+  expect(f.makeAccepted().cancelByDriver(f.otherDriverSession, now)).toEqual(
     err({ code: 'driver_mismatch' }),
   );
 });

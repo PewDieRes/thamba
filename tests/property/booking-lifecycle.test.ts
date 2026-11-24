@@ -30,9 +30,9 @@ const transition = {
   decline: (booking, now) => booking.closeOffer(f.decline, now),
   expire: (booking, now) => booking.closeOffer(f.expire, now),
   offline: (booking, now) => booking.closeOffer(f.withdraw, now),
-  arrive: (booking, now) => booking.reportArrival(f.driverId, now),
-  pickup: (booking, now) => booking.confirmPickup(f.driverId, now),
-  complete: (booking, now) => booking.completeTrip(f.driverId, now),
+  arrive: (booking, now) => booking.reportArrival(f.driverSession, now),
+  pickup: (booking, now) => booking.confirmPickup(f.driverSession, now),
+  complete: (booking, now) => booking.completeTrip(f.driverSession, now),
   cancel: (booking, now) => booking.cancelByRider(f.riderId, now),
 } satisfies Record<
   string,

@@ -10,6 +10,7 @@ import {
   createRideOfferId,
   createRiderId,
   createRouteId,
+  createSessionSubject,
   createStandId,
   createStandCoordinatorId,
   createTownId,
@@ -63,6 +64,18 @@ export const pickupInMilliseconds = 30 * MINUTE_IN_MILLISECONDS;
 export const dueInMilliseconds = pickupInMilliseconds - DEFAULT_LEAD_IN_MILLISECONDS;
 export const at = (epochMilliseconds: number) =>
   unwrap(Instant.fromEpochMilliseconds(epochMilliseconds));
+const subject = unwrap(createSessionSubject(uuid(101)));
+export const otherSubject = unwrap(createSessionSubject(uuid(102)));
+const boundAt = at(0);
+export const driverSession = {
+  subject,
+  device: { status: 'active', driverId, subject, boundAt },
+} as const;
+export const otherDriverSession = {
+  subject: otherSubject,
+  device: { status: 'active', driverId: otherDriverId, subject: otherSubject, boundAt },
+} as const;
+
 export const duration = (milliseconds: number) => unwrap(Duration.fromMilliseconds(milliseconds));
 export const money = (paise: number) => unwrap(Money.fromPaise(paise));
 export const quote = {
@@ -84,14 +97,14 @@ export const request = {
 export const schedule = { ...request, pickupAt: at(pickupInMilliseconds) };
 export const offer = { offerId, driverId, standId, expiresAt: at(MINUTE_IN_MILLISECONDS) };
 export const issue = { offer, ...canBook };
-export const accept = {
-  offerId,
+export const reservedEntry = {
   driverId,
-  tripId,
-  isOnlineAtStand: true,
-  hasReservation: true,
-  ...canBook,
-};
+  standId,
+  availability: 'online',
+  queuedAt: 0n,
+  reservation: offerId,
+} as const;
+export const accept = { offerId, tripId, driver: driverSession, entry: reservedEntry, ...canBook };
 export const decline = { offerId, actor: driverActor, action: 'decline', ...canBook } as const;
 export const expire = { offerId, actor: dispatchActor, action: 'expire', ...canBook } as const;
 export const withdraw = {
@@ -106,8 +119,8 @@ export const makeScheduled = () => unwrap(Booking.schedule(schedule, at(0))).boo
 export const makeRequested = () => unwrap(Booking.request(request, at(0))).booking;
 export const makeOffering = () => unwrap(makeRequested().issueOffer(issue, at(1))).booking;
 export const makeAccepted = () => unwrap(makeOffering().acceptOffer(accept, at(2))).booking;
-export const makeArrived = () => unwrap(makeAccepted().reportArrival(driverId, at(3))).booking;
-export const makeInTrip = () => unwrap(makeArrived().confirmPickup(driverId, at(4))).booking;
+export const makeArrived = () => unwrap(makeAccepted().reportArrival(driverSession, at(3))).booking;
+export const makeInTrip = () => unwrap(makeArrived().confirmPickup(driverSession, at(4))).booking;
 
 export const makeBooking = {
   scheduled: makeScheduled,
@@ -116,8 +129,8 @@ export const makeBooking = {
   accepted: makeAccepted,
   driver_arrived: makeArrived,
   in_trip: makeInTrip,
-  completed: () => unwrap(makeInTrip().completeTrip(driverId, at(5))).booking,
+  completed: () => unwrap(makeInTrip().completeTrip(driverSession, at(5))).booking,
   cancelled_by_rider: () => unwrap(makeRequested().cancelByRider(riderId, at(5))).booking,
-  cancelled_by_driver: () => unwrap(makeAccepted().cancelByDriver(driverId, at(5))).booking,
+  cancelled_by_driver: () => unwrap(makeAccepted().cancelByDriver(driverSession, at(5))).booking,
   no_driver_found: () => unwrap(makeRequested().endSearch(search, at(5))).booking,
 } satisfies Record<BookingStatus, () => Booking>;
