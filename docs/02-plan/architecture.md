@@ -95,6 +95,7 @@ src/
     manifest.ts
   proxy.ts                         # Locale routing and session cookie refresh
   domain/
+    shared/                        # Result, domain errors, branded IDs and shared value objects
     town/                          # Licence, booking capability, simulation profile
     fares/
     dispatch/                      # Booking, RideOffer, Stand queue and strategies
