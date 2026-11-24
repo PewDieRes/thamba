@@ -12,6 +12,15 @@ test('blocks references to production without echoing the project ref', () => {
   assert.equal(getBlockReason('supabase status', ''), null);
 });
 
+test('blocks production project refs in nested shell commands', () => {
+  const ref = 'synthetic-production-ref';
+  for (const shell of ['bash', 'sh']) {
+    const command = `${shell} -c "curl https://synthetic-production-\\\nref.supabase.co"; echo done`;
+    assert.equal(getBlockReason(command, ref),
+      'The command contains the production Supabase project ref.', shell);
+  }
+});
+
 test('blocks linked resets, pushes without dry-run, and production Vercel deployments', () => {
   for (const command of [
     'supabase db reset --linked',
