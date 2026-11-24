@@ -95,6 +95,7 @@ Record reservation, release, queue position and membership changes in the rotati
 
 - At request time, capture the ordered search list and dispatch time limit for the Booking. The list starts with the original Stand, followed by the configured neighbouring Stands that serve the pickup area in the same Town and run, with each Stand listed once. Search at most the first **N** distinct Stands, including the original Stand. The Town can set **N** to a positive integer. If the Town supplies no cap, use the full list. The one-Stand demo has an empty alternate list.
 - Set `dispatchDeadline = requestedAt + T minutes`. The Town can configure positive **T**, defaulting to **1.5 minutes (90 seconds)**. At `now >= dispatchDeadline`, close dispatch, expire any pending offer and use `no_driver_found` with `dispatch_deadline`.
+- On each search, scan only the ordered, capped Stand list captured at request time. From the same serialized snapshot as the queue, verify that each candidate Stand still serves the pickup area and belongs to the Booking’s Town and run. Skip any Stand that fails either check. Skipped Stands still count toward the captured cap. Later edits to neighbour order or cap apply to new Bookings.
 - Each search in `requested` scans the captured list once in order, applying current Stand eligibility and rotation. Continue past any Stand without an eligible Driver, including when every Driver there has a pending offer for another Booking. Stop at the first eligible Driver and return `OfferTo(driverId)` for the original Stand or `EscalateToStand(standId, driverId)` for a neighbouring Stand. The caller issues one offer via B5 from the same serialized snapshot. If an offer closes and dispatch continues, the next search starts from the original Stand with the same attempt history.
 - If the scan finds no eligible Driver across the capped list, return `GiveUp(stands_exhausted)`. The caller applies B11 immediately.
 - In `no_driver_found`, show the original Stand Coordinator's configured number to the Rider. In a demo run, show the labelled synthetic contact. If booking authority has lapsed, show it as an administrative contact and present the current Town capability reason.
@@ -114,6 +115,14 @@ Each search scans the captured list once. The planner returns `OfferTo(driverId)
 | `WaitForResponse(until)` | Wait for the pending offer's response until `expiresAt`. |
 | `ExpireOffer(offerId)` | Expire the due offer and return the Booking to `requested` before replanning. |
 | `GiveUp(reason)` | End dispatch with `dispatch_deadline`, `booking_unavailable` or `stands_exhausted`. |
+
+### Planner assumptions
+
+- At request or scheduled activation, the caller supplies neighbours already verified to serve the pickup area in the Booking's Town and run. Capture removes repeated Stand IDs before applying the cap, and rejects an explicitly configured cap that is not a positive safe integer.
+- Stand eligibility, queue entries, active Trip slots and offer attempts come from the same serialized decision. The queue and slots are scoped to the Booking's Town and run. A captured Stand with no current eligibility record is skipped, including the original Stand. An offer attempt still counts if the Driver has since moved to another Stand.
+- Booking decisions keep millisecond precision. Queue order uses integer epoch microseconds so consecutive tail insertions can differ by one microsecond at the same decision time.
+- A decline policy can choose a queue time from the Driver's current position through the calculated tail, inclusive. An out-of-range result uses the default tail placement.
+- The caller invokes the planner only for `requested` and `offering` Bookings. Input outside those states, or an `offering` Booking missing its pending record during an open dispatch window, produces `GiveUp(booking_unavailable)` without authorizing a new offer. The Booking transition guards still apply.
 
 ## Invariants
 
