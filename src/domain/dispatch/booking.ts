@@ -1,18 +1,19 @@
-import type { DriverId, RiderId } from '../shared/ids.value-object';
+import type { DriverSession } from '../identity/driver-device';
+import type { RiderId } from '../shared/ids.value-object';
 import type { Instant } from '../shared/instant.value-object';
 import { err, ok } from '../shared/result';
 import type { Result } from '../shared/result';
-import type { BookingDecision } from './booking-decision';
+import { isActiveTrip } from '../trip/trip';
+import type { BookingDecision, BookingEffects } from './booking-decision';
 import { DISPATCH_ACTOR, getBookingEventContext } from './booking-events';
-import type { BookingEvent } from './booking-events';
+import { acceptBookingOffer } from './booking-offer-acceptance';
+import type { AcceptOfferInput } from './booking-offer-acceptance';
 import {
-  acceptBookingOffer,
   closeBookingOffer,
   endBookingOffering,
   issueBookingOffer,
 } from './booking-offer-transition';
 import type {
-  AcceptOfferInput,
   CloseOfferInput,
   EndOfferingInput,
   IssueOfferInput,
@@ -33,19 +34,12 @@ import type {
 import type { BookingState, BookingTransitionError, NoDriverFoundReason } from './booking-state';
 import { getBookingTransition } from './booking-status';
 import type { BookingCommand } from './booking-status';
-import {
-  cancelBookingByDriver,
-  cancelBookingByRider,
-  recordTripProgress,
-} from './booking-trip-transition';
+import { cancelBookingByRider, recordBookingTripTransition } from './booking-trip-transition';
 
 export type { BookingTransitionError } from './booking-state';
 
 type BookingTransition = Result<
-  {
-    readonly booking: Booking;
-    readonly events: readonly BookingEvent[];
-  },
+  { readonly booking: Booking } & BookingEffects,
   BookingTransitionError
 >;
 
@@ -126,21 +120,21 @@ export class Booking {
     return this.#transition('acceptOffer', () => acceptBookingOffer(this.state, input, now));
   }
 
-  reportArrival(driverId: DriverId, now: Instant): BookingTransition {
+  reportArrival(driver: DriverSession, now: Instant): BookingTransition {
     return this.#transition('reportArrival', () =>
-      recordTripProgress(this.state, { driverId, type: 'DriverArrived' }, now),
+      recordBookingTripTransition(this.state, { type: 'reportArrival', driver }, now),
     );
   }
 
-  confirmPickup(driverId: DriverId, now: Instant): BookingTransition {
+  confirmPickup(driver: DriverSession, now: Instant): BookingTransition {
     return this.#transition('confirmPickup', () =>
-      recordTripProgress(this.state, { driverId, type: 'TripStarted' }, now),
+      recordBookingTripTransition(this.state, { type: 'confirmPickup', driver }, now),
     );
   }
 
-  completeTrip(driverId: DriverId, now: Instant): BookingTransition {
+  completeTrip(driver: DriverSession, now: Instant): BookingTransition {
     return this.#transition('completeTrip', () =>
-      recordTripProgress(this.state, { driverId, type: 'TripCompleted' }, now),
+      recordBookingTripTransition(this.state, { type: 'completeTrip', driver }, now),
     );
   }
 
@@ -161,9 +155,9 @@ export class Booking {
     return this.#transition('cancelByRider', () => cancelBookingByRider(this.state, riderId, now));
   }
 
-  cancelByDriver(driverId: DriverId, now: Instant): BookingTransition {
+  cancelByDriver(driver: DriverSession, now: Instant): BookingTransition {
     return this.#transition('cancelByDriver', () =>
-      cancelBookingByDriver(this.state, driverId, now),
+      recordBookingTripTransition(this.state, { type: 'cancelByDriver', driver }, now),
     );
   }
 
@@ -173,9 +167,16 @@ export class Booking {
 
     const decision = decide();
     if (!decision.ok) return decision;
+    const { changes, ...effects } = decision.value;
+    const trip = effects.trip;
     return ok({
-      booking: new Booking({ ...this.state, ...decision.value.changes, status }),
-      events: decision.value.events,
+      booking: new Booking({
+        ...this.state,
+        ...changes,
+        status,
+        ...(trip === undefined ? {} : { trip: isActiveTrip(trip) ? trip : undefined }),
+      }),
+      ...effects,
     });
   }
 

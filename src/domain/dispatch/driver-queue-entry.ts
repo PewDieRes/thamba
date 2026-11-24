@@ -19,7 +19,7 @@ export interface OnlineDriverQueueEntry extends DriverQueueIdentity {
   readonly reservation?: RideOfferId;
 }
 
-interface OfflineDriverQueueEntry extends DriverQueueIdentity {
+export interface OfflineDriverQueueEntry extends DriverQueueIdentity {
   readonly availability: 'offline';
 }
 

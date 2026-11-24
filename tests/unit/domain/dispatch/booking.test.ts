@@ -101,7 +101,12 @@ it('B7 assigns the Driver and emits acceptance and Trip creation once', () => {
     now,
   );
   expect(result.booking.state.offer).toBeUndefined();
-  expect(result.booking.state.trip).toMatchObject({ tripId: f.tripId, driverId: f.driverId });
+  expect(result.booking.state.trip).toMatchObject({
+    tripId: f.tripId,
+    driverId: f.driverId,
+    status: 'accepted',
+    acceptedAt: now,
+  });
   expect(result.events[2]).toMatchObject({
     actor: f.driverActor,
     tripId: f.tripId,
@@ -114,14 +119,14 @@ it.each([
   ['B9', f.makeArrived, 'confirmPickup', 'in_trip', 'TripStarted', 'pickedUpAt'],
 ] as const)('%s records Driver progress', (_id, make, command, status, event, timeField) => {
   const now = f.at(5);
-  const result = f.unwrap(make()[command](f.driverId, now));
+  const result = f.unwrap(make()[command](f.driverSession, now));
   expectTransition(result, { status, events: [event] }, now);
   expect(result.booking.state.trip?.[timeField]).toBe(now);
 });
 
 it('B10 completes the Trip and clears the active Trip reference', () => {
   const now = f.at(5);
-  const result = f.unwrap(f.makeInTrip().completeTrip(f.driverId, now));
+  const result = f.unwrap(f.makeInTrip().completeTrip(f.driverSession, now));
   expectTransition(result, { status: 'completed', events: ['TripCompleted'] }, now);
   expect(result.booking.state.trip).toBeUndefined();
   expect(result.events[0]).toMatchObject({ tripId: f.tripId, driverId: f.driverId });
@@ -185,7 +190,7 @@ it.each(['accepted', 'driver_arrived', 'in_trip'] as const)(
   'B14 Driver cancels from %s',
   (status) => {
     const now = f.at(5);
-    const result = f.unwrap(f.makeBooking[status]().cancelByDriver(f.driverId, now));
+    const result = f.unwrap(f.makeBooking[status]().cancelByDriver(f.driverSession, now));
     expectTransition(
       result,
       { status: 'cancelled_by_driver', events: ['TripCancelled', 'BookingCancelledByDriver'] },

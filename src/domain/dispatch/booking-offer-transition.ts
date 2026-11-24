@@ -1,4 +1,4 @@
-import type { BookingId, DriverId, RideOfferId, TripId } from '../shared/ids.value-object';
+import type { BookingId, RideOfferId } from '../shared/ids.value-object';
 import type { Instant } from '../shared/instant.value-object';
 import { err, ok } from '../shared/result';
 import type { BookingDecision } from './booking-decision';
@@ -33,13 +33,6 @@ export type CloseOfferInput = CurrentOfferInput &
     | { readonly action: 'expire'; readonly actor: DispatchActor }
     | { readonly action: 'withdraw'; readonly actor: DriverActor | StandCoordinatorActor }
   );
-
-export interface AcceptOfferInput extends CurrentOfferInput {
-  readonly driverId: DriverId;
-  readonly tripId: TripId;
-  readonly isOnlineAtStand: boolean;
-  readonly hasReservation: boolean;
-}
 
 export interface EndOfferingInput extends BookingAuthority {
   readonly actor?: OfferActor;
@@ -102,33 +95,6 @@ export function closeBookingOffer(
     now,
   );
   return ok({ changes: { offer: undefined }, events: [event] });
-}
-
-export function acceptBookingOffer(
-  state: BookingState,
-  input: AcceptOfferInput,
-  now: Instant,
-): BookingDecision {
-  const offer = state.offer;
-  if (offer?.offerId !== input.offerId) return err({ code: 'offer_mismatch' });
-  if (offer.driverId !== input.driverId) return err({ code: 'driver_mismatch' });
-  if (isRideOfferExpired(offer, now)) return err({ code: 'offer_expired' });
-
-  const block = getDispatchBlock(state, input, now);
-  if (block) return err({ code: block });
-  if (!input.isOnlineAtStand || !input.hasReservation) return err({ code: 'driver_not_reserved' });
-
-  const { offerId, driverId, standId } = offer;
-  const trip = Object.freeze({ tripId: input.tripId, driverId, standId });
-  const context = getBookingEventContext(state, { type: 'driver', driverId }, now);
-  return ok({
-    changes: { offer: undefined, trip },
-    events: [
-      { ...context, offerId, driverId, standId, type: 'RideOfferAccepted' },
-      { ...context, ...trip, type: 'BookingAccepted' },
-      { ...context, ...trip, fare: state.fare, type: 'TripCreated' },
-    ],
-  });
 }
 
 export function endBookingOffering(

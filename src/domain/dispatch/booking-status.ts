@@ -1,3 +1,5 @@
+import { TRIP_TRANSITIONS } from '../trip/trip';
+
 export const ALLOWED_TRANSITIONS = {
   scheduled: {
     activate: 'requested',
@@ -15,21 +17,7 @@ export const ALLOWED_TRANSITIONS = {
     endOffering: 'no_driver_found',
     cancelByRider: 'cancelled_by_rider',
   },
-  accepted: {
-    reportArrival: 'driver_arrived',
-    cancelByRider: 'cancelled_by_rider',
-    cancelByDriver: 'cancelled_by_driver',
-  },
-  driver_arrived: {
-    confirmPickup: 'in_trip',
-    cancelByRider: 'cancelled_by_rider',
-    cancelByDriver: 'cancelled_by_driver',
-  },
-  in_trip: {
-    completeTrip: 'completed',
-    cancelByRider: 'cancelled_by_rider',
-    cancelByDriver: 'cancelled_by_driver',
-  },
+  ...TRIP_TRANSITIONS,
   completed: {},
   cancelled_by_rider: {},
   cancelled_by_driver: {},

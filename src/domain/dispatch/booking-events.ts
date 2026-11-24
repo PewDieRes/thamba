@@ -5,10 +5,11 @@ import type {
   RideOfferId,
   StandCoordinatorId,
   StandId,
-  TripId,
 } from '../shared/ids.value-object';
 import type { Instant } from '../shared/instant.value-object';
-import type { BookingFare, BookingScope, NoDriverFoundReason } from './booking-state';
+import type { BookingScope } from '../town/town';
+import type { TripCreated, TripProgressEvent, TripReference } from '../trip/trip-events';
+import type { NoDriverFoundReason } from './booking-state';
 
 export type RiderActor = { readonly type: 'rider'; readonly riderId: RiderId };
 export type DriverActor = { readonly type: 'driver'; readonly driverId: DriverId };
@@ -36,12 +37,6 @@ interface OfferReference {
   readonly standId: StandId;
 }
 
-interface TripReference {
-  readonly tripId: TripId;
-  readonly driverId: DriverId;
-  readonly standId: StandId;
-}
-
 export type BookingScheduled = RecordedEvent<'BookingScheduled'> & {
   readonly pickupAt: Instant;
   readonly requestDueAt: Instant;
@@ -62,17 +57,6 @@ export type RideOfferWithdrawn = RecordedEvent<'RideOfferWithdrawn'> &
   };
 export type RideOfferAccepted = RecordedEvent<'RideOfferAccepted'> & OfferReference;
 export type BookingAccepted = RecordedEvent<'BookingAccepted'> & TripReference;
-export type TripCreated = RecordedEvent<'TripCreated'> &
-  TripReference & {
-    readonly fare: BookingFare;
-  };
-export type DriverArrived = RecordedEvent<'DriverArrived'> & TripReference;
-export type TripStarted = RecordedEvent<'TripStarted'> & TripReference;
-export type TripCompleted = RecordedEvent<'TripCompleted'> & TripReference;
-export type TripCancelled = RecordedEvent<'TripCancelled'> &
-  TripReference & {
-    readonly reason: 'cancelled_by_rider' | 'cancelled_by_driver';
-  };
 export type BookingCancelledByRider = RecordedEvent<'BookingCancelledByRider'>;
 export type BookingCancelledByDriver = RecordedEvent<'BookingCancelledByDriver'> & TripReference;
 
@@ -87,10 +71,7 @@ export type BookingEvent =
   | RideOfferAccepted
   | BookingAccepted
   | TripCreated
-  | DriverArrived
-  | TripStarted
-  | TripCompleted
-  | TripCancelled
+  | TripProgressEvent
   | BookingCancelledByRider
   | BookingCancelledByDriver;
 
