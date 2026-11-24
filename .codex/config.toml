@@ -9,3 +9,25 @@ web_search = "cached"
 default_subagent_model = "gpt-6.2-sol"
 default_subagent_reasoning_effort = "medium"
 max_concurrent_threads_per_session = 4
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '''
+dir="$PWD"
+while [ ! -f "$dir/.codex/hooks/block-prod-commands.mjs" ]; do
+  if [ "$dir" = "/" ] || [ -e "$dir/.git" ]; then
+    echo "Unable to locate the Thamba production command hook." >&2
+    exit 2
+  fi
+  dir="$(dirname "$dir")"
+done
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js is required for the Thamba production command hook." >&2
+  exit 2
+fi
+exec node "$dir/.codex/hooks/block-prod-commands.mjs"
+'''
+statusMessage = "Checking shell command for production targets"
