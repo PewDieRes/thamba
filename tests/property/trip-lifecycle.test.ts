@@ -9,6 +9,7 @@ import { createBookingId, createRideOfferId, createTripId } from '@domain/shared
 import * as f from '../unit/domain/dispatch/booking.fixtures';
 import { PROPERTY_RUNS } from './property-runs.fixtures';
 
+const GENERATED_REPLAY_TIMEOUT_MILLISECONDS = 60_000;
 const MICROSECONDS_PER_MILLISECOND = 1_000n;
 const ROUND_SPACING_MILLISECONDS = 10;
 const MAX_ROUNDS = 8;
@@ -150,14 +151,18 @@ function runRound(entry: DriverQueueEntry, spec: Round, index: number) {
   return rejoin(accepted.queueEntry, f.at(startedAtMilliseconds + 4), spec);
 }
 
-it('I4/I9 keep one Driver slot and require explicit tail rejoin across offer and Trip sequences', () => {
-  fc.assert(
-    fc.property(fc.array(round, { minLength: 1, maxLength: MAX_ROUNDS }), (rounds) => {
-      const initial = f.unwrap(
-        joinDriverQueue({ entry: offline, now: f.at(0), standEntries: [], hasActiveTrip: false }),
-      );
-      rounds.reduce<DriverQueueEntry>(runRound, initial);
-    }),
-    { numRuns: PROPERTY_RUNS },
-  );
-});
+it(
+  'I4/I9 keep one Driver slot and require explicit tail rejoin across offer and Trip sequences',
+  () => {
+    fc.assert(
+      fc.property(fc.array(round, { minLength: 1, maxLength: MAX_ROUNDS }), (rounds) => {
+        const initial = f.unwrap(
+          joinDriverQueue({ entry: offline, now: f.at(0), standEntries: [], hasActiveTrip: false }),
+        );
+        rounds.reduce<DriverQueueEntry>(runRound, initial);
+      }),
+      { numRuns: PROPERTY_RUNS },
+    );
+  },
+  GENERATED_REPLAY_TIMEOUT_MILLISECONDS,
+);

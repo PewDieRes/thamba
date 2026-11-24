@@ -5,15 +5,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, onTestFinished, test } from 'vitest';
 
+const BOUNDARY_FIXTURE_TIMEOUT_MILLISECONDS = 30_000;
 const repository = fileURLToPath(new URL('../../', import.meta.url));
-const cruise = join(
-  repository,
-  'node_modules',
-  'dependency-cruiser',
-  'bin',
-  'dependency-cruise.mjs',
-);
-const config = join(repository, 'dependency-cruiser.config.cjs');
+const checkBoundaries = join(repository, 'scripts', 'check-boundaries.mjs');
 const serverEntry = 'src/infrastructure/composition/container.ts';
 const serverPage = 'src/app/page.ts';
 const serverWiring = 'export { compose } from "@infrastructure/composition/container";';
@@ -25,6 +19,16 @@ const fixtureCases = [
       'src/domain/booking.ts':
         'import type { Port } from "@application/ports/port"; export type Booking = Port;',
       'src/application/ports/port.ts': 'export type Port = string;',
+    },
+  },
+  {
+    rule: 'application-stays-in-core',
+    modules: {
+      'src/application/use-cases/quote-fare/quote-fare.use-case.ts':
+        'export { seed } from "./quote-fare.use-case.test";',
+      'src/application/use-cases/quote-fare/quote-fare.use-case.test.ts':
+        'export { seed } from "@infrastructure/memory/seed";',
+      'src/infrastructure/memory/seed.ts': 'export const seed = {};',
     },
   },
   {
@@ -54,21 +58,25 @@ const fixtureCases = [
   },
 ];
 
-test.each(fixtureCases)('reports the expected boundary result ($rule)', ({ rule, modules }) => {
-  const directory = mkdtempSync(join(tmpdir(), 'thamba-boundaries-'));
-  onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
-  copyFileSync(join(repository, 'tsconfig.json'), join(directory, 'tsconfig.json'));
-  for (const [path, source] of Object.entries(modules)) {
-    const destination = join(directory, path);
-    mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, source);
-  }
+test.each(fixtureCases)(
+  'reports the expected boundary result ($rule)',
+  ({ rule, modules }) => {
+    const directory = mkdtempSync(join(tmpdir(), 'thamba-boundaries-'));
+    onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
+    copyFileSync(join(repository, 'tsconfig.json'), join(directory, 'tsconfig.json'));
+    for (const [path, source] of Object.entries(modules)) {
+      const destination = join(directory, path);
+      mkdirSync(dirname(destination), { recursive: true });
+      writeFileSync(destination, source);
+    }
 
-  const result = spawnSync(process.execPath, [cruise, '--config', config, 'src'], {
-    cwd: directory,
-    encoding: 'utf8',
-  });
-  const output = result.stdout + result.stderr;
-  expect(result.status, output).toBe(rule ? 1 : 0);
-  if (rule) expect(output).toContain(`error ${rule}:`);
-});
+    const result = spawnSync(process.execPath, [checkBoundaries], {
+      cwd: directory,
+      encoding: 'utf8',
+    });
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(rule ? 1 : 0);
+    if (rule) expect(output).toContain(`error ${rule}:`);
+  },
+  BOUNDARY_FIXTURE_TIMEOUT_MILLISECONDS,
+);
