@@ -136,8 +136,8 @@ Coverage means a rider can get picked up locally, with auto and cab categories c
 [yetav-district]: https://pudhari.news/maharashtra/kokan/sindhudurg/yetav-auto-rickshaw-app-launch-sindhudurg-ab96
 [yetav-app]: https://play.google.com/store/apps/details?hl=en_SG&id=com.yetavtravel
 [rail]: https://konkanrailway.com/sites/default/files/2026-04/Footfall-FY-2025-26.pdf
-[air-march]: https://siteproxy.ruqli.workers.dev/https/www.aai.aero/sites/default/files/traffic-news/Mar2k26Annex3_0.pdf
-[air-aug]: https://siteproxy.ruqli.workers.dev/https/www.aai.aero/sites/default/files/traffic-news/Aug2k26Annex3.pdf
+[air-march]: https://www.aai.aero/sites/default/files/traffic-news/Mar2k26Annex3_0.pdf
+[air-aug]: https://www.aai.aero/sites/default/files/traffic-news/Aug2k26Annex3.pdf
 [air-parl]: https://sansad.in/getFile/annex/269/AU1606_48NTMt.pdf?source=pqars
 [air-sep-month]: https://biharinfratales.com/airports/sindhudurg
 [air-sep-total]: https://knowmoreindia.com/infrastructure/airports
