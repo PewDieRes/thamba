@@ -8,6 +8,10 @@ declare const ID_BRAND: unique symbol;
 type Id<Kind extends string> = string & { readonly [ID_BRAND]: Kind };
 
 export type TownId = Id<'Town'>;
+export type DemoRunId = Id<'DemoRun'>;
+export type RiderId = Id<'Rider'>;
+export type RouteId = Id<'Route'>;
+export type StandCoordinatorId = Id<'StandCoordinator'>;
 export type StandId = Id<'Stand'>;
 export type LandmarkId = Id<'Landmark'>;
 export type DriverId = Id<'Driver'>;
@@ -53,5 +57,21 @@ export function createTripId(input: unknown): Result<TripId, IdError> {
 }
 
 export function createFareChartId(input: unknown): Result<FareChartId, IdError> {
+  return createId(input);
+}
+
+export function createDemoRunId(input: unknown): Result<DemoRunId, IdError> {
+  return createId(input);
+}
+
+export function createRiderId(input: unknown): Result<RiderId, IdError> {
+  return createId(input);
+}
+
+export function createRouteId(input: unknown): Result<RouteId, IdError> {
+  return createId(input);
+}
+
+export function createStandCoordinatorId(input: unknown): Result<StandCoordinatorId, IdError> {
   return createId(input);
 }
