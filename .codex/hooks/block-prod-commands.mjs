@@ -22,7 +22,7 @@ export function getBlockReason(command, prodRef) {
       continue;
     }
     if (COMMAND_BREAK.test(part)) {
-      const reason = checkWords(words);
+      const reason = checkWords(words, ref);
       if (reason) return reason;
       words = [];
     } else if (!isRedirectionTarget) {
@@ -30,7 +30,7 @@ export function getBlockReason(command, prodRef) {
     }
     isRedirectionTarget = false;
   }
-  return checkWords(words);
+  return checkWords(words, ref);
 }
 
 function unquote(word) {
@@ -38,7 +38,7 @@ function unquote(word) {
     singleQuoted ?? doubleQuoted?.replace(/\\([$"\\])/g, '$1') ?? escaped);
 }
 
-function checkWords(words) {
+function checkWords(words, prodRef) {
   for (const [index, word] of words.entries()) {
     const executable = word.split('/').at(-1);
     const args = words.slice(index + 1);
@@ -53,7 +53,7 @@ function checkWords(words) {
       const flagIndex = args.findIndex((arg) => /^-[a-z]*c[a-z]*$/i.test(arg));
       const program = args[flagIndex + 1];
       if (flagIndex >= 0 && program) {
-        const reason = getBlockReason(program);
+        const reason = getBlockReason(program, prodRef);
         if (reason) return reason;
       }
     }
