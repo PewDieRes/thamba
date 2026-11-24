@@ -1,0 +1,1 @@
+Coordinator views belong here.
