@@ -74,6 +74,7 @@ export type BookingTransitionError = DomainError<
   | 'invalid_request_due_at'
   | 'schedule_not_due'
   | 'invalid_dispatch_deadline'
+  | 'invalid_stand_search_cap'
   | 'dispatch_deadline'
   | 'dispatch_still_open'
   | 'stand_outside_search'

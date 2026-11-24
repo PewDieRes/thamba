@@ -1,4 +1,4 @@
-import type { DriverId, RideOfferId, TripId } from '../shared/ids.value-object';
+import type { BookingId, DriverId, RideOfferId, TripId } from '../shared/ids.value-object';
 import type { Instant } from '../shared/instant.value-object';
 import { err, ok } from '../shared/result';
 import type { BookingDecision } from './booking-decision';
@@ -15,9 +15,10 @@ import type {
 import { getDispatchBlock } from './booking-request';
 import type { BookingAuthority } from './booking-request';
 import type { BookingState, PendingBookingOffer } from './booking-state';
+import { isRideOfferExpired } from './ride-offer';
 
 export interface IssueOfferInput extends BookingAuthority {
-  readonly offer: PendingBookingOffer;
+  readonly offer: PendingBookingOffer & { readonly bookingId?: BookingId };
 }
 
 interface CurrentOfferInput extends BookingAuthority {
@@ -52,9 +53,11 @@ export function issueBookingOffer(
   const block = getDispatchBlock(state, input, now);
   if (block) return err({ code: block });
 
-  const { offerId, driverId, standId, expiresAt } = input.offer;
+  const { offerId, driverId, standId, expiresAt, bookingId } = input.offer;
+  if (bookingId !== undefined && bookingId !== state.bookingId)
+    return err({ code: 'offer_mismatch' });
   if (!state.searchStandIds?.includes(standId)) return err({ code: 'stand_outside_search' });
-  if (!now.isBefore(expiresAt) || state.dispatchDeadline?.isBefore(expiresAt)) {
+  if (isRideOfferExpired(input.offer, now) || state.dispatchDeadline?.isBefore(expiresAt)) {
     return err({ code: 'invalid_offer_expiry' });
   }
   const offer = Object.freeze({ offerId, driverId, standId, expiresAt });
@@ -84,7 +87,7 @@ export function closeBookingOffer(
   if (actorError) return err({ code: actorError });
   const block = getDispatchBlock(state, input, now);
   if (block) return err({ code: block });
-  if (input.action === 'expire' && now.isBefore(offer.expiresAt))
+  if (input.action === 'expire' && !isRideOfferExpired(offer, now))
     return err({ code: 'offer_not_due' });
 
   const type = input.action === 'decline' ? 'RideOfferDeclined' : 'RideOfferWithdrawn';
@@ -109,7 +112,7 @@ export function acceptBookingOffer(
   const offer = state.offer;
   if (offer?.offerId !== input.offerId) return err({ code: 'offer_mismatch' });
   if (offer.driverId !== input.driverId) return err({ code: 'driver_mismatch' });
-  if (now.isAtOrAfter(offer.expiresAt)) return err({ code: 'offer_expired' });
+  if (isRideOfferExpired(offer, now)) return err({ code: 'offer_expired' });
 
   const block = getDispatchBlock(state, input, now);
   if (block) return err({ code: block });
@@ -168,14 +171,14 @@ export function getOfferCloseEvent(
   closure: OfferClosure,
   now: Instant,
 ): RideOfferDeclined | RideOfferExpired | RideOfferWithdrawn {
-  const { offerId, driverId, standId, expiresAt } = closure.offer;
+  const { offerId, driverId, standId } = closure.offer;
   const details = {
     ...getBookingEventContext(state, closure.actor, now),
     offerId,
     driverId,
     standId,
   };
-  if (now.isAtOrAfter(expiresAt)) return { ...details, type: 'RideOfferExpired' };
+  if (isRideOfferExpired(closure.offer, now)) return { ...details, type: 'RideOfferExpired' };
   if (closure.type === 'RideOfferDeclined') return { ...details, type: 'RideOfferDeclined' };
   return { ...details, type: 'RideOfferWithdrawn', reason: closure.reason };
 }

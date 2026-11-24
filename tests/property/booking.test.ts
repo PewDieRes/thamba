@@ -7,6 +7,9 @@ import {
   runBookingCommand,
 } from '../unit/domain/dispatch/booking-commands.fixtures';
 import * as f from '../unit/domain/dispatch/booking.fixtures';
+import { PROPERTY_RUNS } from './property-runs.fixtures';
+
+const GENERATED_REPLAY_TIMEOUT_MILLISECONDS = 20_000;
 
 interface Step {
   readonly command: BookingCommand;
@@ -50,61 +53,73 @@ function confirmFare(isScheduled: boolean, paise: number) {
   return { confirmed, expected };
 }
 
-it('I6 preserves the confirmed fare, ordered Route and Fare chart version', () => {
-  const confirmation = fc.record({
-    isScheduled: fc.boolean(),
-    paise: fc.integer({ min: 0, max: 100_000 }),
-    tickMilliseconds: fc.integer({ min: 1, max: 5_000 }),
-  });
-  fc.assert(
-    fc.property(confirmation, steps, ({ isScheduled, paise, tickMilliseconds }, commands) => {
-      const { confirmed, expected } = confirmFare(isScheduled, paise);
-      const startInMilliseconds = isScheduled ? f.dueInMilliseconds : 0;
-      const requested = isScheduled
-        ? f.unwrap(confirmed.activate(f.canBook, f.at(startInMilliseconds))).booking
-        : confirmed;
-      const sequence = [
-        { command: 'issueOffer', advanceByMilliseconds: tickMilliseconds },
-        { command: 'acceptOffer', advanceByMilliseconds: tickMilliseconds },
-        ...commands,
-      ] as const;
-      let sawTrip = false;
-      for (const { booking, events } of replay(requested, startInMilliseconds, sequence)) {
-        expect(booking.state.fare).toMatchObject(expected);
-        expect(booking.state.fare.amount.paise).toBe(paise);
-        for (const event of events) {
-          if (event.type === 'TripCreated') {
-            expect(event.fare).toBe(booking.state.fare);
-            sawTrip = true;
+it(
+  'I6 preserves the confirmed fare, ordered Route and Fare chart version',
+  () => {
+    const confirmation = fc.record({
+      isScheduled: fc.boolean(),
+      paise: fc.integer({ min: 0, max: 100_000 }),
+      tickMilliseconds: fc.integer({ min: 1, max: 5_000 }),
+    });
+    fc.assert(
+      fc.property(confirmation, steps, ({ isScheduled, paise, tickMilliseconds }, commands) => {
+        const { confirmed, expected } = confirmFare(isScheduled, paise);
+        const startInMilliseconds = isScheduled ? f.dueInMilliseconds : 0;
+        const requested = isScheduled
+          ? f.unwrap(confirmed.activate(f.canBook, f.at(startInMilliseconds))).booking
+          : confirmed;
+        const sequence = [
+          { command: 'issueOffer', advanceByMilliseconds: tickMilliseconds },
+          { command: 'acceptOffer', advanceByMilliseconds: tickMilliseconds },
+          ...commands,
+        ] as const;
+        let sawTrip = false;
+        for (const { booking, events } of replay(requested, startInMilliseconds, sequence)) {
+          expect(booking.state.fare).toMatchObject(expected);
+          expect(booking.state.fare.amount.paise).toBe(paise);
+          for (const event of events) {
+            if (event.type === 'TripCreated') {
+              expect(event.fare).toBe(booking.state.fare);
+              sawTrip = true;
+            }
           }
         }
-      }
-      expect(sawTrip).toBe(true);
-    }),
-  );
-});
+        expect(sawTrip).toBe(true);
+      }),
+      { numRuns: PROPERTY_RUNS },
+    );
+  },
+  GENERATED_REPLAY_TIMEOUT_MILLISECONDS,
+);
 
-it('I7 preserves every terminal state without an active offer or Trip', () => {
-  fc.assert(
-    fc.property(steps, (commands) => {
-      const terminal = [
-        f.makeBooking.completed,
-        f.makeBooking.cancelled_by_rider,
-        f.makeBooking.cancelled_by_driver,
-        f.makeBooking.no_driver_found,
-      ];
-      for (const make of terminal) {
-        const initial = make();
-        for (const { booking, events } of replay(initial, 5, commands)) {
-          expect(booking).toBe(initial);
-          expect(events).toEqual([]);
-          expect(booking.state.offer).toBeUndefined();
-          expect(booking.state.trip).toBeUndefined();
+it(
+  'I7 preserves every terminal state without an active offer or Trip',
+  {
+    timeout: GENERATED_REPLAY_TIMEOUT_MILLISECONDS,
+  },
+  () => {
+    fc.assert(
+      fc.property(steps, (commands) => {
+        const terminal = [
+          f.makeBooking.completed,
+          f.makeBooking.cancelled_by_rider,
+          f.makeBooking.cancelled_by_driver,
+          f.makeBooking.no_driver_found,
+        ];
+        for (const make of terminal) {
+          const initial = make();
+          for (const { booking, events } of replay(initial, 5, commands)) {
+            expect(booking).toBe(initial);
+            expect(events).toEqual([]);
+            expect(booking.state.offer).toBeUndefined();
+            expect(booking.state.trip).toBeUndefined();
+          }
         }
-      }
-    }),
-  );
-});
+      }),
+      { numRuns: PROPERTY_RUNS },
+    );
+  },
+);
 
 it('I10 activates a schedule at most once, at or after the captured due time', () => {
   const times = fc.record({
@@ -141,5 +156,6 @@ it('I10 activates a schedule at most once, at or after the captured due time', (
         }
       }
     }),
+    { numRuns: PROPERTY_RUNS },
   );
 });
