@@ -9,6 +9,8 @@ import type {
   BookingState,
   BookingTransitionError,
 } from './booking-state';
+import { captureConfiguredNeighbourOrder } from './configured-neighbour-order.policy';
+import type { StandFallbackPolicy } from './stand-fallback.policy';
 
 const DEFAULT_LEAD_TIME_MILLISECONDS = 1_200_000;
 const DEFAULT_DISPATCH_DURATION_MILLISECONDS = 90_000;
@@ -36,6 +38,8 @@ interface BookingConfirmation extends BookingAuthority {
 export interface DispatchSettings {
   readonly dispatchDuration?: Duration;
   readonly alternateStandIds?: readonly StandId[];
+  readonly maxSearchStands?: number;
+  readonly standFallback?: StandFallbackPolicy;
 }
 
 export interface RequestBookingInput extends BookingConfirmation, DispatchSettings {}
@@ -113,10 +117,23 @@ export function getDispatchWindow(
   const deadline = Instant.fromEpochMilliseconds(now.epochMilliseconds + durationMilliseconds);
   if (durationMilliseconds === 0 || !deadline.ok) return err({ code: 'invalid_dispatch_deadline' });
 
-  const searchStandIds = Object.freeze([
-    ...new Set([standId, ...(settings.alternateStandIds ?? [])]),
-  ]);
-  return ok({ requestedAt: now, dispatchDeadline: deadline.value, searchStandIds });
+  const search = {
+    originalStandId: standId,
+    neighbourStandIds: settings.alternateStandIds ?? [],
+    ...(settings.maxSearchStands === undefined
+      ? {}
+      : { maxSearchStands: settings.maxSearchStands }),
+  };
+  const captured = settings.standFallback
+    ? settings.standFallback.capture(search)
+    : captureConfiguredNeighbourOrder(search);
+  if (!captured.ok) return captured;
+
+  return ok({
+    requestedAt: now,
+    dispatchDeadline: deadline.value,
+    searchStandIds: Object.freeze([...captured.value]),
+  });
 }
 
 interface DispatchWindow {

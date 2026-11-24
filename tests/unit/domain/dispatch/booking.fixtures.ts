@@ -20,7 +20,7 @@ import { Money } from '@domain/shared/money.value-object';
 import type { Result } from '@domain/shared/result';
 
 export function unwrap<T, E>(result: Result<T, E>): T {
-  assert(result.ok, JSON.stringify(result));
+  assert(result.ok, result.ok ? undefined : JSON.stringify(result.error));
   return result.value;
 }
 
