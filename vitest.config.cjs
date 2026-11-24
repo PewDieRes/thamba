@@ -22,7 +22,7 @@ module.exports = defineConfig({
         extends: true,
         test: {
           name: 'contract',
-          include: ['tests/contract/**/*.{contract,test,spec}.{ts,mts,cts,tsx,js,mjs,cjs,jsx}'],
+          include: ['tests/contract/**/*.{test,spec}.{ts,mts,cts,tsx,js,mjs,cjs,jsx}'],
         },
       },
       {
