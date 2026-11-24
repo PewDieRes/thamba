@@ -5,7 +5,7 @@ import {
   dispatchRide,
   driverCommand,
   DRIVER_ONE,
-} from '../../../../tests/unit/application/demo.fixtures';
+} from '../../demo.fixtures';
 
 test('SetDriverAvailability applies its Demo Town rules', async () => {
   const app = await createDemo();

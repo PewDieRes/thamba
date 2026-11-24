@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createDemo } from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo } from '../../demo.fixtures';
 
 test('GetTownOverview applies its Demo Town rules', async () => {
   const app = await createDemo();

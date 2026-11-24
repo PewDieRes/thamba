@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createDemo, inviteInput } from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, inviteInput } from '../../demo.fixtures';
 
 test('IssueDriverInvite applies its Demo Town rules', async () => {
   const app = await createDemo();

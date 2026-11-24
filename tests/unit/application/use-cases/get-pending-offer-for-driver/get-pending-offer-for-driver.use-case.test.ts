@@ -1,10 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  createDemo,
-  unwrap,
-  dispatchRide,
-  driverCommand,
-} from '../../../../tests/unit/application/demo.fixtures';
+import { createDemo, unwrap, dispatchRide, driverCommand } from '../../demo.fixtures';
 
 test('GetPendingOfferForDriver applies its Demo Town rules', async () => {
   const app = await createDemo();
