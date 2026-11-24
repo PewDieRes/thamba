@@ -1,30 +1,20 @@
+import type { Route } from '../fares/fare-chart';
 import type { DomainError } from '../shared/domain.error';
 import type {
   BookingId,
-  DemoRunId,
   DriverId,
-  LandmarkId,
   RiderId,
   RideOfferId,
-  RouteId,
   StandId,
-  TownId,
   TripId,
 } from '../shared/ids.value-object';
 import type { Instant } from '../shared/instant.value-object';
 import type { Money } from '../shared/money.value-object';
+import type { BookingScope } from '../town/town';
 import type { BookingStatus } from './booking-status';
 
-export interface BookingScope {
-  readonly townId: TownId;
-  readonly demoRunId?: DemoRunId;
-}
-
-export interface BookingRoute {
-  readonly routeId: RouteId;
-  readonly pickupLandmarkId: LandmarkId;
-  readonly destinationLandmarkId: LandmarkId;
-}
+export type { BookingScope } from '../town/town';
+export type BookingRoute = Route;
 
 export interface BookingFare {
   readonly route: BookingRoute;
