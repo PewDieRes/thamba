@@ -7,6 +7,10 @@ export class InMemoryUnitOfWork implements UnitOfWork {
 
   constructor(private readonly createTransaction: (store: MemoryStore) => Transaction) {}
 
+  listBookings() {
+    return this.#store.tables.bookings.list().map(({ value }) => value);
+  }
+
   async run<T>(
     work: (transaction: Transaction) => Promise<ApplicationResult<T>>,
   ): Promise<ApplicationResult<T>> {

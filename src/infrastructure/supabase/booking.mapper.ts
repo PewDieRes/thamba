@@ -1,3 +1,4 @@
+import type { RiderBookingRecord } from '@application/ports/rider-booking-reader';
 import type { Booking } from '@domain/dispatch/booking';
 import type { BookingState, PendingBookingOffer } from '@domain/dispatch/booking-state';
 import type { ActiveTrip } from '@domain/trip/trip';
@@ -58,17 +59,7 @@ function readPendingOffer(row: PendingOfferRow | null, domain: DomainValues) {
 export function fromBookingRow(row: BookingRow, domain: DomainValues) {
   const activeTrip = row.active_trip && fromTripRow(row.active_trip, domain).value;
   const state: BookingState = {
-    ...readScope(row.town_id, row.demo_run_id),
-    bookingId: row.id as BookingState['bookingId'],
-    riderId: row.rider_user_id as BookingState['riderId'],
-    standId: row.stand_id as BookingState['standId'],
-    status: row.status as BookingState['status'],
-    fare: {
-      route: readRoute(row),
-      fareChartVersion: row.chart_version,
-      amount: unpack(domain.money(row.fare_in_paise)),
-    },
-    ...readOptionalInstant('pickupAt', row.pickup_at, domain),
+    ...fromRiderBookingRow(row, domain),
     ...readOptionalInstant('requestDueAt', row.request_due_at, domain),
     ...readOptionalInstant('requestedAt', row.requested_at, domain),
     ...readOptionalInstant('dispatchDeadline', row.dispatch_deadline_at, domain),
@@ -76,17 +67,16 @@ export function fromBookingRow(row: BookingRow, domain: DomainValues) {
       'searchStandIds',
       row.search_stand_ids?.map((id) => id as BookingState['standId']),
     ),
-    ...mapOptional(
-      'noDriverFoundReason',
-      row.no_driver_found_reason as BookingState['noDriverFoundReason'],
-    ),
     ...mapOptional('offer', readPendingOffer(row.pending_offer, domain)),
     ...mapOptional('trip', activeTrip as ActiveTrip | null),
   };
   return versioned(row, domain.booking(state));
 }
 
-export function toBookingRow({ state }: Booking): Omit<BookingRow, 'version'> {
+export function toBookingRow(
+  { state }: Booking,
+  getDueAt: DomainValues['bookingDueAt'],
+): Omit<BookingRow, 'version'> {
   const { offer, trip } = state;
   return {
     ...writeScope(state),
@@ -102,7 +92,7 @@ export function toBookingRow({ state }: Booking): Omit<BookingRow, 'version'> {
     request_due_at: writeInstant(state.requestDueAt),
     requested_at: writeInstant(state.requestedAt),
     dispatch_deadline_at: writeInstant(state.dispatchDeadline),
-    next_due_at: writeInstant(nextDueAt(state)),
+    next_due_at: writeInstant(getDueAt(state)),
     pending_offer_id: offer?.offerId ?? null,
     search_stand_ids: state.searchStandIds ? [...state.searchStandIds] : null,
     pending_offer: offer
@@ -117,15 +107,40 @@ export function toBookingRow({ state }: Booking): Omit<BookingRow, 'version'> {
   };
 }
 
-function nextDueAt(state: BookingState) {
-  switch (state.status) {
-    case 'scheduled':
-      return state.requestDueAt;
-    case 'requested':
-      return state.requestedAt;
-    case 'offering':
-      return state.offer?.expiresAt;
-    default:
-      return undefined;
-  }
+export type RiderBookingRow = Pick<
+  BookingRow,
+  | 'id'
+  | 'town_id'
+  | 'demo_run_id'
+  | 'rider_user_id'
+  | 'stand_id'
+  | 'chart_version'
+  | 'fare_in_paise'
+  | 'status'
+  | 'pickup_at'
+  | 'no_driver_found_reason'
+> &
+  RouteRow;
+
+export function fromRiderBookingRow(
+  row: RiderBookingRow,
+  domain: DomainValues,
+): RiderBookingRecord {
+  return {
+    ...readScope(row.town_id, row.demo_run_id),
+    bookingId: row.id as BookingState['bookingId'],
+    riderId: row.rider_user_id as BookingState['riderId'],
+    standId: row.stand_id as BookingState['standId'],
+    status: row.status as BookingState['status'],
+    fare: {
+      route: readRoute(row),
+      fareChartVersion: row.chart_version,
+      amount: unpack(domain.money(row.fare_in_paise)),
+    },
+    ...readOptionalInstant('pickupAt', row.pickup_at, domain),
+    ...mapOptional(
+      'noDriverFoundReason',
+      row.no_driver_found_reason as BookingState['noDriverFoundReason'],
+    ),
+  };
 }

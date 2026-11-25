@@ -1,3 +1,4 @@
+import { getBookingDueAt } from '@domain/dispatch/booking-state';
 import { Booking } from '@domain/dispatch/booking';
 import { RideOffer } from '@domain/dispatch/ride-offer';
 import { Duration } from '@domain/shared/duration.value-object';
@@ -9,6 +10,7 @@ import { createLicence } from '@domain/town/licence';
 import type { PayloadValues } from '../supabase/payload.mapper';
 
 export const domainValues: PayloadValues = {
+  bookingDueAt: getBookingDueAt,
   isInstant: (value): value is Instant => value instanceof Instant,
   isMoney: (value): value is Money => value instanceof Money,
   booking: (state) => Booking.restore(state),
@@ -20,3 +22,9 @@ export const domainValues: PayloadValues = {
   money: (value) => Money.fromPaise(value),
   passengers: (value, max) => PassengerCount.fromCount(value, max),
 };
+
+export function toInstant(milliseconds: number): Instant {
+  const instant = Instant.fromEpochMilliseconds(milliseconds);
+  if (!instant.ok) throw new RangeError('The system clock returned an invalid instant');
+  return instant.value;
+}

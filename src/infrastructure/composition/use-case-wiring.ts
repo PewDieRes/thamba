@@ -1,8 +1,21 @@
+import { StartAnonymousSession } from '@application/use-cases/start-anonymous-session/start-anonymous-session.use-case';
+import { createStartAnonymousSessionSchema } from '@application/use-cases/start-anonymous-session/start-anonymous-session.input';
+import { StartDemoRun } from '@application/use-cases/start-demo-run/start-demo-run.use-case';
+import { createStartDemoRunSchema } from '@application/use-cases/start-demo-run/start-demo-run.input';
+import type { DemoRunProvisioner } from '@application/ports/demo-run-provisioner';
+import { CoordinatorSignIn } from '@application/use-cases/coordinator-sign-in/coordinator-sign-in.use-case';
+import { createCoordinatorSignInSchema } from '@application/use-cases/coordinator-sign-in/coordinator-sign-in.input';
+import { CompleteCoordinatorSignIn } from '@application/use-cases/complete-coordinator-sign-in/complete-coordinator-sign-in.use-case';
+import { createCompleteCoordinatorSignInSchema } from '@application/use-cases/complete-coordinator-sign-in/complete-coordinator-sign-in.input';
 import type { InputSchemaFactory } from '@application/contracts/input-schema';
 import { CommandExecutor, type CommandDependencies } from '@application/operations/execute-command';
+import type { RiderBookingReader } from '@application/ports/rider-booking-reader';
+import type { DueBookings } from '@application/ports/due-bookings';
 import type { Clock } from '@application/ports/clock';
 import type { IdGenerator } from '@application/ports/id-generator';
 import type { InviteTokenGenerator } from '@application/ports/invite-token-generator';
+import { SweepDispatch } from '@application/use-cases/sweep-dispatch/sweep-dispatch.use-case';
+import { createSweepDispatchSchema } from '@application/use-cases/sweep-dispatch/sweep-dispatch.input';
 import { QuoteFare } from '@application/use-cases/quote-fare/quote-fare.use-case';
 import { createQuoteFareSchema } from '@application/use-cases/quote-fare/quote-fare.input';
 import { RequestRide } from '@application/use-cases/request-ride/request-ride.use-case';
@@ -43,6 +56,9 @@ import { MoveToBackOfQueuePolicy } from '@domain/dispatch/move-to-back-of-queue.
 import { zodInputSchema } from './zod-input-schema';
 
 export interface ContainerPorts extends CommandDependencies {
+  readonly demoRuns: DemoRunProvisioner;
+  readonly riderBookings: RiderBookingReader;
+  readonly dueBookings: DueBookings;
   readonly clock: Clock;
   readonly ids: IdGenerator;
   readonly tokens: InviteTokenGenerator;
@@ -60,23 +76,18 @@ export function createContainer(ports: ContainerPorts) {
     standFallback: new ConfiguredNeighbourOrderPolicy(),
     declinePenalty: new MoveToBackOfQueuePolicy(),
   };
+  const advanceDispatch = new AdvanceDispatch(dependencies, schema(createAdvanceDispatchSchema));
   return {
+    startDemoRun: new StartDemoRun(ports, schema(createStartDemoRunSchema)),
     quoteFare: new QuoteFare(dependencies, schema(createQuoteFareSchema)),
     requestRide: new RequestRide(dependencies, schema(createRequestRideSchema)),
     scheduleRide: new ScheduleRide(dependencies, schema(createScheduleRideSchema)),
-    advanceDispatch: new AdvanceDispatch(dependencies, schema(createAdvanceDispatchSchema)),
-    respondToRideOffer: new RespondToRideOffer(
-      dependencies,
-      schema(createRespondToRideOfferSchema),
+    advanceDispatch,
+    sweepDispatch: new SweepDispatch(
+      { ...ports, advanceDispatch },
+      schema(createSweepDispatchSchema),
     ),
-    setDriverAvailability: new SetDriverAvailability(
-      dependencies,
-      schema(createSetDriverAvailabilitySchema),
-    ),
-    rejoinQueue: new RejoinQueue(dependencies, schema(createRejoinQueueSchema)),
-    markDriverArrived: new MarkDriverArrived(dependencies, schema(createMarkDriverArrivedSchema)),
-    startTrip: new StartTrip(dependencies, schema(createStartTripSchema)),
-    completeTrip: new CompleteTrip(dependencies, schema(createCompleteTripSchema)),
+    ...createDriverCommands(dependencies),
     cancelBooking: new CancelBooking(dependencies, schema(createCancelBookingSchema)),
     getBookingStatusForRider: new GetBookingStatusForRider(
       ports,
@@ -105,4 +116,43 @@ function createIdentityCommands(
       schema(createRevokeDriverDeviceSchema),
     ),
   };
+}
+
+function createDriverCommands(
+  dependencies: Parameters<typeof createIdentityCommands>[0] & {
+    driverRanking: FairRotationPolicy;
+    standFallback: ConfiguredNeighbourOrderPolicy;
+    declinePenalty: MoveToBackOfQueuePolicy;
+  },
+) {
+  return {
+    respondToRideOffer: new RespondToRideOffer(
+      dependencies,
+      schema(createRespondToRideOfferSchema),
+    ),
+    setDriverAvailability: new SetDriverAvailability(
+      dependencies,
+      schema(createSetDriverAvailabilitySchema),
+    ),
+    rejoinQueue: new RejoinQueue(dependencies, schema(createRejoinQueueSchema)),
+    markDriverArrived: new MarkDriverArrived(dependencies, schema(createMarkDriverArrivedSchema)),
+    startTrip: new StartTrip(dependencies, schema(createStartTripSchema)),
+    completeTrip: new CompleteTrip(dependencies, schema(createCompleteTripSchema)),
+  };
+}
+
+export function buildCoordinatorSignIn(ports: ConstructorParameters<typeof CoordinatorSignIn>[0]) {
+  return { requestLink: new CoordinatorSignIn(ports, schema(createCoordinatorSignInSchema)) };
+}
+
+export function buildCompleteCoordinatorSignIn(
+  session: ConstructorParameters<typeof CompleteCoordinatorSignIn>[0],
+) {
+  return new CompleteCoordinatorSignIn(session, schema(createCompleteCoordinatorSignInSchema));
+}
+
+export function buildStartAnonymousSession(
+  session: ConstructorParameters<typeof StartAnonymousSession>[0],
+) {
+  return new StartAnonymousSession(session, schema(createStartAnonymousSessionSchema));
 }
