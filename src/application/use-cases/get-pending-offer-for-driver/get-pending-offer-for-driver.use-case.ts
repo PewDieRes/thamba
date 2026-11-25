@@ -1,3 +1,5 @@
+import { mapDriverLandmark } from '@application/operations/driver-landmark.mapper';
+import type { DriverOfferView } from '@application/contracts/driver-state-view';
 import type { InputSchema } from '@application/contracts/input-schema';
 import { validateActorInput } from '@application/operations/validate-actor-input';
 import type { ActorContext } from '@application/ports/actor-context';
@@ -23,7 +25,7 @@ export class GetPendingOfferForDriver {
     return validateActorInput(
       { actorContext: this.ports.actorContext, role: 'driver', schema: this.schema },
       input,
-      ({ subject }) =>
+      ({ subject, includeDisplay }) =>
         unitOfWork.run(
           async (tx) => {
             const now = clock.now();
@@ -31,7 +33,11 @@ export class GetPendingOfferForDriver {
             if (!session.ok) return session;
             const recorded = (await tx.offers.findPendingByDriver(session.value.driverId))?.value;
             if (!recorded || isRideOfferExpired(recorded.offer, now)) return ok(undefined);
-            return projectOffer(tx, recorded.offer, { driver: session.value.driver, now });
+            return projectOffer(tx, recorded.offer, {
+              driver: session.value.driver,
+              now,
+              includeDisplay,
+            });
           },
           { target: { kind: 'device' } },
         ),
@@ -42,20 +48,39 @@ export class GetPendingOfferForDriver {
 async function projectOffer(
   tx: Transaction,
   offer: import('@domain/dispatch/ride-offer').RideOffer,
-  { driver, now }: { driver: DriverSession; now: Instant },
+  {
+    driver,
+    now,
+    includeDisplay,
+  }: { driver: DriverSession; now: Instant; includeDisplay?: boolean | undefined },
 ) {
   const state = (await tx.bookings.get(offer.bookingId))?.value.state;
   if (state?.offer?.offerId !== offer.offerId) return ok(undefined);
   const [town, stand] = await Promise.all([
     tx.towns.get(state.townId),
-    tx.stands.get(offer.standId),
+    tx.stands.get(offer.standId).then((record) => record?.value),
   ]);
-  if (!canBookTown(town?.value, state, now)) return ok(undefined);
+  if (!town || !canBookTown(town.value, state, now)) return ok(undefined);
   const pickupId = state.fare.route.pickupLandmarkId;
-  const pickupCue =
-    stand && servesPickup(stand.value, state, pickupId)
-      ? stand.value.pickupCues[pickupId]
-      : undefined;
+  if (!servesPickup(stand, state, pickupId)) return ok(undefined);
+  const pickupCue = stand.pickupCues[pickupId];
   if (pickupCue === undefined) return ok(undefined);
-  return projectPendingOfferView(state, { driver, pickupCue }, now);
+  const projected = projectPendingOfferView(state, { driver, pickupCue }, now);
+  return withOfferDisplay(projected, {
+    includeDisplay,
+    pickup: mapDriverLandmark(town.value.landmarks, pickupId),
+    pickupCueTranslations: stand.pickupCueTranslations?.[pickupId],
+  });
+}
+
+function withOfferDisplay(
+  projected: ReturnType<typeof projectPendingOfferView>,
+  {
+    includeDisplay,
+    ...display
+  }: Pick<DriverOfferView, 'pickup' | 'pickupCueTranslations'> & {
+    includeDisplay?: boolean | undefined;
+  },
+) {
+  return projected.ok && includeDisplay ? ok({ ...projected.value, ...display }) : projected;
 }

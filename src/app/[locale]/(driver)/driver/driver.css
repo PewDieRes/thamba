@@ -1,0 +1,63 @@
+.driver {
+  --surface: #fff;
+  --ink: #101e18;
+  --accent: #004631;
+  --line: #314c41;
+  color: var(--ink);
+  font-size: 1.125rem;
+}
+
+.driver h2 {
+  font-size: 1.375rem;
+}
+
+.driver-panel {
+  border: 2px solid var(--line);
+  padding: 1rem;
+}
+
+.driver :is(button, .action) {
+  width: 100%;
+  min-block-size: 64px;
+  margin-block-start: 0.5rem;
+  font-size: 1.125rem;
+  border-width: 2px;
+}
+
+.driver-details {
+  margin-block: 0.75rem;
+}
+
+.driver-details dt {
+  font-weight: 700;
+}
+
+.driver-details dd {
+  margin: 0 0 0.625rem;
+}
+
+.driver-number {
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.driver-availability-status {
+  margin-block-start: 0.5rem;
+  font-weight: 700;
+}
+
+.driver-offer {
+  border-width: 3px;
+}
+
+.driver-offer-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+}
+
+.driver-offer-actions button {
+  min-inline-size: 64px;
+}

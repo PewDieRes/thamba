@@ -79,8 +79,14 @@ export interface SnapshotReader {
   <Name extends Resource>(resource: Name, filter: Filter, revision?: string): Promise<Row<Name>[]>;
 }
 
+export interface RepositorySnapshot {
+  readonly revision: string;
+  readonly read: SnapshotReader;
+  getRevision(): Promise<string>;
+}
+
 export interface RepositoryBackend extends RepositoryStorage {
-  openReader?(access: RepositoryAccess | undefined): Promise<SnapshotReader>;
+  openSnapshot?(access: RepositoryAccess | undefined): Promise<RepositorySnapshot>;
   getRevision(): Promise<string>;
   list<Name extends Resource>(
     resource: Name,

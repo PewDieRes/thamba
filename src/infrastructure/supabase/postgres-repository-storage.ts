@@ -18,7 +18,7 @@ import {
   type Resource,
   type Row,
   type RowWrite,
-  type SnapshotReader,
+  type RepositorySnapshot,
   type RepositoryBackend,
 } from './repository-storage';
 
@@ -40,10 +40,27 @@ export class PostgresRepositoryStorage implements RepositoryBackend {
     return Promise.reject(new StorageFailure('42501'));
   }
 
-  async openReader(access: RepositoryAccess | undefined): Promise<SnapshotReader> {
+  async openSnapshot(access: RepositoryAccess | undefined): Promise<RepositorySnapshot> {
     if (!access) throw new StorageFailure('42501');
     const context = createReadContext(access, await this.actors.getActor());
-    return (resource, filter, revision) => this.read(resource, filter, { revision, context });
+    const getRevision = () => this.getScopedRevision(context);
+    return {
+      revision: await getRevision(),
+      read: (resource, filter, revision) => this.read(resource, filter, { revision, context }),
+      getRevision,
+    };
+  }
+
+  private async getScopedRevision(context: Json) {
+    try {
+      const [row] = await this.sql<{ revision: string }[]>`
+        select public.thamba_scoped_repository_revision(${this.sql.json(context)}) as revision
+      `;
+      if (!row) throw new StorageFailure(undefined);
+      return row.revision;
+    } catch (error) {
+      throw toStorageFailure(error);
+    }
   }
 
   private async read<Name extends Resource>(

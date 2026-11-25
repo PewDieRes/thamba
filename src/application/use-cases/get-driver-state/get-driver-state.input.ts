@@ -1,0 +1,10 @@
+import { createSessionSubject } from '@domain/shared/ids.value-object';
+import type { InputOf, InputSchemaFactory } from '@application/contracts/input-schema';
+
+export function createGetDriverStateSchema(schema: InputSchemaFactory) {
+  return schema.object({
+    subject: schema.validated(createSessionSubject),
+  });
+}
+
+export type GetDriverStateInput = InputOf<typeof createGetDriverStateSchema>;

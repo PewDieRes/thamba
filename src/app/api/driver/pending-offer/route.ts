@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const session = createAuthSession(await getRequestCookies());
   const app = createConfiguredContainer(undefined, { actorContext: session });
   return createCommandRoute({
-    schema: z.strictObject({}),
+    schema: z.strictObject({ includeDisplay: z.literal(true).optional() }),
     guard: () => guardArea(session, 'driver'),
     execute: (input) => app.getPendingOfferForDriver.execute(input),
   })(request);

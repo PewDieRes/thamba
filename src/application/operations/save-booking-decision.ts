@@ -56,7 +56,9 @@ export async function saveQueueChange(
     eligibleDriverIds,
   }: QueueChange,
 ): Promise<WriteResult> {
-  const saved = await tx.drivers.save({ ...previous.value, entry }, previous.version);
+  const next = { ...previous.value, entry };
+  if (entry.availability === 'online') delete next.needsRejoin;
+  const saved = await tx.drivers.save(next, previous.version);
   if (!saved.ok) return saved;
   return appendEvents(tx.events, ids, [
     {

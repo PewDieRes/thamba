@@ -7,9 +7,10 @@ interface InviteCopy {
   confirmed: string;
   failed: string;
   missing: string;
+  openHome: string;
 }
 
-export function ConfirmInvite({ copy }: { copy: InviteCopy }) {
+export function ConfirmInvite({ copy, homeHref }: { copy: InviteCopy; homeHref: string }) {
   const invite = useRef<{ token: string; commandKey: string } | undefined>(undefined);
   const [state, setState] = useState<
     'loading' | 'ready' | 'pending' | 'confirmed' | 'failed' | 'missing'
@@ -36,7 +37,7 @@ export function ConfirmInvite({ copy }: { copy: InviteCopy }) {
   }
 
   if (state === 'missing') return <p>{copy.missing}</p>;
-  if (state === 'confirmed') return <p role="status">{copy.confirmed}</p>;
+  if (state === 'confirmed') return <ConfirmedInvite copy={copy} homeHref={homeHref} />;
   return (
     <>
       {state === 'failed' && <p role="alert">{copy.failed}</p>}
@@ -47,6 +48,17 @@ export function ConfirmInvite({ copy }: { copy: InviteCopy }) {
       >
         {copy.confirm}
       </button>
+    </>
+  );
+}
+
+function ConfirmedInvite({ copy, homeHref }: { copy: InviteCopy; homeHref: string }) {
+  return (
+    <>
+      <p role="status">{copy.confirmed}</p>
+      <a className="action primary" href={homeHref}>
+        {copy.openHome}
+      </a>
     </>
   );
 }

@@ -31,6 +31,7 @@ import { PostgresDueBookings } from '../supabase/postgres-due-bookings';
 import { PostgresSessionMembershipReader } from '../supabase/postgres-session-membership-reader';
 import { PostgresCoordinatorDirectory } from '../supabase/postgres-coordinator-directory';
 import { PostgresRequestRateLimit } from '../supabase/postgres-request-rate-limit';
+import { PostgresMatchedRiderContactReader } from '../supabase/postgres-matched-rider-contact-reader';
 import { PostgresRiderBookingReader } from '../supabase/postgres-rider-booking-reader';
 import { SupabaseAuthSession } from '../supabase/supabase-auth-session';
 import { sweepActorContext } from './security-wiring';
@@ -65,7 +66,6 @@ export {
   buildStartAnonymousSession,
 } from './use-case-wiring';
 const IN_MEMORY_INVITE_TOKEN_SECRET = Buffer.from('thamba-in-memory-invite-token-test-secret');
-
 export function createInMemoryContainer(overrides: Partial<ContainerPorts> = {}) {
   const memory = new InMemoryUnitOfWork(createMemoryTransaction);
   return createApplicationContainer(overrides.unitOfWork ?? memory, {
@@ -93,7 +93,6 @@ function createApplicationContainer(
   });
   return { ...useCases, unitOfWork, notifier, demoRuns: ports.demoRuns };
 }
-
 export function createMemoryTransaction({ tables }: MemoryStore): Transaction {
   return {
     bookings: new InMemoryBookingRepository(tables.bookings, ACTIVE_BOOKING_STATUSES),
@@ -110,7 +109,6 @@ export function createMemoryTransaction({ tables }: MemoryStore): Transaction {
     events: new InMemoryEventLog(tables.events),
   };
 }
-
 export function createConfiguredContainer(
   configuration = readStorageConfiguration(),
   overrides: Partial<ContainerPorts> = {},
@@ -135,6 +133,9 @@ export function createConfiguredContainer(
     : undefined;
   return createApplicationContainer(createPersistence(storage).unitOfWork, {
     demoRuns: new PostgresDemoRunProvisioner(writer),
+    matchedRiderContacts: new PostgresMatchedRiderContactReader(() =>
+      getPostgresConnection(getDatabaseUrl('reader')),
+    ),
     ...(dueBookings ? { dueBookings } : {}),
     ...overrides,
     tokens,
@@ -150,7 +151,6 @@ export function createSupabasePersistence(configuration: SupabaseConfiguration) 
   const client = createProvisioningClient(configuration);
   return createPersistence(new SupabaseStorage(client, configuration.commandScope));
 }
-
 function createPersistence(storage: RepositoryBackend) {
   return {
     transaction: createSupabaseTransaction(storage),

@@ -560,6 +560,7 @@ export type Database = {
           created_at: string;
           driver_id: string;
           id: string;
+          needs_rejoin: boolean;
           pending_offer_id: string | null;
           queue_driver_id: string | null;
           queue_version: number;
@@ -575,6 +576,7 @@ export type Database = {
           created_at?: string;
           driver_id: string;
           id?: string;
+          needs_rejoin?: boolean;
           pending_offer_id?: string | null;
           queue_driver_id?: never;
           queue_version?: number;
@@ -589,6 +591,7 @@ export type Database = {
           created_at?: string;
           driver_id?: string;
           id?: string;
+          needs_rejoin?: boolean;
           pending_offer_id?: string | null;
           queue_driver_id?: never;
           queue_version?: number;
@@ -1206,6 +1209,7 @@ export type Database = {
         Row: {
           booking_id: string;
           created_at: string;
+          first_name: string | null;
           id: string;
           phone_e164: string;
           purge_after: string;
@@ -1218,6 +1222,7 @@ export type Database = {
         Insert: {
           booking_id: string;
           created_at?: string;
+          first_name?: string | null;
           id?: string;
           phone_e164: string;
           purge_after: string;
@@ -1229,6 +1234,7 @@ export type Database = {
         Update: {
           booking_id?: string;
           created_at?: string;
+          first_name?: string | null;
           id?: string;
           phone_e164?: string;
           purge_after?: string;
@@ -1740,6 +1746,13 @@ export type Database = {
       };
     };
     Functions: {
+      thamba_get_matched_rider_contact: {
+        Args: { subject: string; target_booking_id: string };
+        Returns: {
+          first_name: string;
+          phone_e164: string;
+        }[];
+      };
       thamba_repository_commit: {
         Args: { command_scope?: Json; expected_revision?: string; writes: Json };
         Returns: undefined;

@@ -1,3 +1,6 @@
+import { GetDriverState } from '@application/use-cases/get-driver-state/get-driver-state.use-case';
+import { createGetDriverStateSchema } from '@application/use-cases/get-driver-state/get-driver-state.input';
+import type { MatchedRiderContactReader } from '@application/ports/matched-rider-contact-reader';
 import type { DispatchAdvancer } from '@application/ports/dispatch-advancer';
 import { StartAnonymousSession } from '@application/use-cases/start-anonymous-session/start-anonymous-session.use-case';
 import { createStartAnonymousSessionSchema } from '@application/use-cases/start-anonymous-session/start-anonymous-session.input';
@@ -57,6 +60,7 @@ import { MoveToBackOfQueuePolicy } from '@domain/dispatch/move-to-back-of-queue.
 import { zodInputSchema } from './zod-input-schema';
 
 export interface ContainerPorts extends CommandDependencies {
+  readonly matchedRiderContacts: MatchedRiderContactReader;
   readonly demoRuns: DemoRunProvisioner;
   readonly riderBookings: RiderBookingReader;
   readonly riderDispatchAdvancer?: DispatchAdvancer;
@@ -90,6 +94,7 @@ export function createContainer(ports: ContainerPorts) {
       schema(createSweepDispatchSchema),
     ),
     ...createDriverCommands(dependencies),
+    getDriverState: new GetDriverState(dependencies, schema(createGetDriverStateSchema)),
     cancelBooking: new CancelBooking(dependencies, schema(createCancelBookingSchema)),
     getBookingStatusForRider: new GetBookingStatusForRider(
       {
