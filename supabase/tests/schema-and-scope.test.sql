@@ -3,7 +3,7 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 grant usage on schema extensions to thamba_writer;
 
-select plan(15);
+select plan(17);
 
 select is((
   select count(*)
@@ -25,7 +25,7 @@ select is((select count(*) from towns where slug in ('malvan', 'demo-town') and 
   2::bigint, 'Both contest Towns use the simulated configuration');
 select is((select count(*) from simulation_profiles where kind = 'synthetic' and town_id =
   (select id from towns where slug = 'demo-town')), 1::bigint, 'Demo Town has one synthetic profile');
-select is((select count(*) from stands where town_id = (select id from towns where slug = 'demo-town')),
+select is((select count(*) from stands where demo_run_id is null and town_id = (select id from towns where slug = 'demo-town')),
   1::bigint, 'Demo Town has one Stand template');
 select is((select count(*) from fare_charts where is_current and is_illustrative and town_id =
   (select id from towns where slug = 'demo-town')), 1::bigint, 'Demo Town has an illustrative Fare chart');
@@ -35,6 +35,11 @@ select is((select count(*) from simulation_profiles where town_id = (select id f
   0::bigint, 'Malvan has no simulation profile');
 select is((select count(*) from landmarks where is_illustrative and town_id =
   (select id from towns where slug = 'malvan')), 2::bigint, 'Malvan landmarks are marked illustrative');
+
+select is((select count(*) from stands where demo_run_id is null and town_id =
+  (select id from towns where slug = 'malvan')), 1::bigint, 'Malvan has an illustrative Stand');
+select is((select count(*) from fare_charts where is_current and is_illustrative and town_id =
+  (select id from towns where slug = 'malvan')), 1::bigint, 'Malvan has an illustrative Fare chart');
 
 select is((select schedule from cron.job where jobname = 'thamba-dispatch-sweep' and active),
   '* * * * *', 'The dispatch sweep is scheduled every minute');

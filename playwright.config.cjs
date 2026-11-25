@@ -1,4 +1,12 @@
 const { defineConfig, devices } = require('@playwright/test');
+const { join } = require('node:path');
+const { loadEnvFile } = require('node:process');
+
+try {
+  loadEnvFile(join(__dirname, '.env.local'));
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
 
 const PORT = 3100;
 const origin = `http://127.0.0.1:${PORT}`;
@@ -24,5 +32,6 @@ module.exports = defineConfig({
   webServer: {
     command: `pnpm start --hostname 127.0.0.1 --port ${PORT}`,
     url: origin,
+    env: { APP_ORIGIN: origin },
   },
 });

@@ -10,6 +10,29 @@ Set the server-only `INVITE_TOKEN_SECRET` to at least 32 random bytes encoded in
 
 [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build#corepack) · [Vercel deployment environments](https://vercel.com/docs/deployments/environments) · [Vercel regions](https://vercel.com/docs/regions) · [Thamba architecture](../02-plan/architecture.md)
 
+## Local development
+
+With Docker running, start Supabase and generate the app environment from the repository root.
+
+```sh
+pnpm exec supabase start
+pnpm local:env
+pnpm dev
+```
+
+Open `http://127.0.0.1:3000`. The setup writes the ignored `.env.local` file and provisions
+three scoped logins in the local database. Rerun `pnpm local:env` after a database reset.
+Each run replaces `.env.local` and rotates the local login passwords and app secrets.
+
+To run the Rider end-to-end tests with the same local Supabase stack, build the app and install
+Chromium. Playwright loads `.env.local` and starts the app on `http://127.0.0.1:3100`.
+
+```sh
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
 ## Database roles and transaction scope
 
 Apply the migrations using deployment credentials. Provision separate server logins that inherit
@@ -44,7 +67,7 @@ indexes contacts due for removal.
 
 ## Auth and Booking entry points
 
-- Enable anonymous sign-ins in the matching Supabase project. The Rider can start a Demo Run with `POST /api/rider/demo-run` using a catalogue Stand. Use the returned run and Stand IDs for `POST /api/rider/quote` and `POST /api/rider/bookings`. The provisioned run copies Stand pickup cues. Synthetic Drivers and their scripted steps are provisioned by the scenario workflow.
+- Enable anonymous sign-ins in the matching Supabase project. The Rider can start a Demo Run with `POST /api/rider/demo-run` using a catalogue Stand. Use the returned run and Stand IDs for `POST /api/rider/quote` and `POST /api/rider/bookings`. The provisioned run copies Stand pickup cues and loads the successful-trip roster from the synthetic profile. On the Rider status page, the verified Rider’s 3-second polls return a snapshot and advance due dispatch or scripted Driver steps through the same booking rules. Demo Driver contact links require a configured synthetic destination.
 - Pre-provision a confirmed email identity and an active `coordinators` row for the correct Town, run and Stand. Keep the email provider enabled for magic links. Public Auth accounts receive Coordinator privileges only through an operator-provisioned membership. In Supabase Auth, allow-list the HTTPS `/auth/callback?locale=mr`, `/auth/callback?locale=hi` and `/auth/callback?locale=en` URLs for each deployment origin. The sign-in route requests a PKCE link and the callback only redirects to the localized Coordinator area or sign-in page. Sign in with the same browser that requested the email.
 - Issue a Driver invite with a synthetic roster entry and share the returned HTTPS link. The token appears in its fragment and is removed when the confirmation page opens. The confirmation POST redeems the invite after an anonymous session has been established. The Coordinator can revoke the device through `POST /api/coordinator/revoke-device`.
 - Booking confirmation allows 10 requests per IP per Postgres minute window and up to two active Bookings across Towns and runs per Rider session. The first limit uses the Vercel-forwarded IP and an atomic Postgres counter shared by every function instance. The second uses the Booking transaction so concurrent confirmations cannot exceed the cap.
@@ -81,3 +104,5 @@ indexes contacts due for removal.
 For token rotation, update the Vault entry and the deployment secret together, then verify a successful sweep. The next scheduled sweep recovers Bookings that became due during the rotation.
 
 [Supabase Cron](https://supabase.com/docs/guides/cron) · [pg_net](https://supabase.com/docs/guides/database/extensions/pg_net) · [Vault](https://supabase.com/docs/guides/database/vault)
+
+The public Town catalogue is available at `/[locale]/towns/[slug]`. Share a `?from=<landmark-slug>` link to preselect a Rider's pickup. Provide translated administrative and grievance contact text in the catalogue. Use a project-controlled contact for Malvan, and keep its sample Fare chart marked illustrative until an approved tariff is available.
