@@ -1,3 +1,4 @@
+import { getProtectedArea } from '@interface/auth/protected-path';
 import { verifySweepAuthorization } from '@infrastructure/composition/container';
 import { SUBJECT_ONE } from '../application/demo-data.fixtures';
 import { expect, test, vi } from 'vitest';
@@ -70,4 +71,9 @@ test('authorized sweep logs only counts', async () => {
   );
   expect(response.status).toBe(200);
   expect(logCounts).toHaveBeenCalledExactlyOnceWith({ attempted: 0, advanced: 0, failed: 0 });
+});
+
+test('the Rider can open a Town booking form before establishing an anonymous session', () => {
+  expect(getProtectedArea('/mr/rider/demo-town')).toBeUndefined();
+  expect(getProtectedArea('/mr/rider/status/a-booking')).toBe('rider');
 });
