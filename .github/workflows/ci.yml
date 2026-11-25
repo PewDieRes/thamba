@@ -40,3 +40,29 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v6
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec supabase start -x logflare,vector,studio,imgproxy,supavisor
+      - run: pnpm exec supabase test db
+      - name: Run Supabase adapter contracts
+        shell: bash
+        run: |
+          eval "$(pnpm exec supabase status -o env)"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          pnpm test:integration
