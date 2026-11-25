@@ -12,6 +12,8 @@ export interface DriverOfferView {
   readonly pickupCue: string;
   readonly pickupCueTranslations?: Translations | undefined;
   readonly expiresAtEpochMilliseconds: number;
+  readonly serverNow: number;
+  readonly remainingMilliseconds: number;
 }
 
 export interface DriverTripView {

@@ -7,6 +7,7 @@ import { SystemClock } from '../clock/system-clock';
 import { HmacInviteTokenGenerator } from '../memory/hmac-invite-token-generator';
 import { InMemoryDriverNotifier } from '../memory/in-memory-driver-notifier';
 import { InMemoryLogger } from '../memory/in-memory-logger';
+import { InMemoryMatchedRiderContactReader } from '../memory/in-memory-matched-rider-contact-reader';
 import { InMemoryUnitOfWork } from '../memory/in-memory-unit-of-work';
 import { RandomIdGenerator } from '../memory/random-id-generator';
 import { Sha256CommandHasher } from '../memory/sha256-command-hasher';
@@ -75,18 +76,21 @@ export function createInMemoryContainer(overrides: Partial<ContainerPorts> = {})
     tokens: overrides.tokens ?? new HmacInviteTokenGenerator(IN_MEMORY_INVITE_TOKEN_SECRET),
   });
 }
-
 function createApplicationContainer(
   unitOfWork: UnitOfWork,
   overrides: Partial<ContainerPorts> & Pick<ContainerPorts, 'tokens'>,
 ) {
   const notifier = overrides.notifier ?? new InMemoryDriverNotifier();
+  const clock = overrides.clock ?? new SystemClock(toInstant);
   const ports = { ...getPersistenceDefaults(unitOfWork), ...overrides };
   const useCases = createContainer({
     ...ports,
     unitOfWork,
     notifier,
-    clock: overrides.clock ?? new SystemClock(toInstant),
+    clock,
+    matchedRiderContacts:
+      overrides.matchedRiderContacts ??
+      new InMemoryMatchedRiderContactReader({ unitOfWork, clock }),
     hasher: overrides.hasher ?? new Sha256CommandHasher(),
     ids: overrides.ids ?? new RandomIdGenerator(),
     logger: overrides.logger ?? new InMemoryLogger(),
@@ -141,7 +145,6 @@ export function createConfiguredContainer(
     tokens,
   });
 }
-
 export function createDispatchSweepContainer() {
   return createConfiguredContainer(readStorageConfiguration('sweep'), {
     actorContext: sweepActorContext,
@@ -165,7 +168,6 @@ export function createAuthSession(cookies: CookieMethodsServer) {
     new PostgresSessionMembershipReader(reader),
   );
 }
-
 export function createRiderBookingReader(session: ActorContext) {
   return new PostgresRiderBookingReader(
     getPostgresConnection(getDatabaseUrl('reader')),
@@ -173,11 +175,9 @@ export function createRiderBookingReader(session: ActorContext) {
     domainValues,
   );
 }
-
 export function createCoordinatorDirectory() {
   return new PostgresCoordinatorDirectory(getPostgresConnection(getDatabaseUrl('reader')));
 }
-
 export function createRequestRateLimit() {
   return new PostgresRequestRateLimit(getPostgresConnection(getDatabaseUrl('writer')));
 }

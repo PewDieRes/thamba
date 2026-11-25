@@ -10,7 +10,6 @@ import { expectAccessible, renderScreen } from '../rider/rider-accessibility.fix
 import {
   copy,
   home,
-  NOW_MILLISECONDS,
   OFFER_DURATION_MILLISECONDS,
   offer,
   riderPhone,
@@ -72,7 +71,7 @@ test.each(['offline', 'online', 'completed'] as const)(
 
 test('pending offer is pickup-only and both actions are accessible', async () => {
   const onRespond = vi.fn();
-  const pending = { ...offer, expiresAtEpochMilliseconds: Date.now() + 60_000 };
+  const pending = { ...offer, receivedAtMilliseconds: performance.now() };
   const { container } = renderScreen(
     <DriverOffer offer={pending} copy={copy} locale="en" isBusy={false} onRespond={onRespond} />,
     copy.title,
@@ -90,10 +89,15 @@ test('pending offer is pickup-only and both actions are accessible', async () =>
 });
 
 test('countdown hides the full offer at the exact deadline between polls', () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(NOW_MILLISECONDS);
+  vi.useFakeTimers({ toFake: ['performance', 'setTimeout', 'clearTimeout'] });
   renderScreen(
-    <DriverOffer offer={offer} copy={copy} locale="en" isBusy={false} onRespond={vi.fn()} />,
+    <DriverOffer
+      offer={{ ...offer, receivedAtMilliseconds: performance.now() }}
+      copy={copy}
+      locale="en"
+      isBusy={false}
+      onRespond={vi.fn()}
+    />,
   );
   expect(screen.getByRole('timer').textContent).toBe('3');
   void act(() => vi.advanceTimersByTime(OFFER_DURATION_MILLISECONDS - 1));

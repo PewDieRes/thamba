@@ -15,5 +15,6 @@ After completion or cancellation, the Driver returns to the tail through
 `joinDriverQueue` with the current Stand entries and an empty slot.
 
 [The pending-offer projection](pending-offer-view.ts) exposes the offer ID,
-pickup Landmark ID, pickup cue and deadline in epoch milliseconds to the offered
-Driver before expiry. Supply the pickup cue from the pickup Landmark.
+pickup Landmark ID, pickup cue, deadline and server observation time in epoch
+milliseconds, plus the remaining duration in milliseconds, to the offered Driver
+before expiry. Supply the pickup cue from the pickup Landmark.

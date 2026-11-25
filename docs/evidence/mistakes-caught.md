@@ -6,3 +6,5 @@
 | The Rider display mapper suppressed configured Stand Coordinator phone numbers, violating dispatch invariant I11.                                    | review     | TODO                                        |
 | Demo Run provisioning selected the scenario in SQL and omitted the scripted Driver roster from the in-memory adapter.                                | review     | TODO                                        |
 | The scoped snapshot migration tried to replace Writer-owned repository functions as the migration role, aborting the database reset before the seed. | test       | TODO                                        |
+| The matched Rider contact reader shipped without a shared contract, leaving Coordinator access and Driver contact denial cases unverified.           | review     | TODO                                        |
+| The pending Ride offer countdown and response handler used the device wall clock, so clock skew could hide actionable offers and block responses.    | review     | TODO                                        |

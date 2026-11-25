@@ -4,9 +4,13 @@ import { postDriver } from './driver-api';
 
 const POLL_INTERVAL_MILLISECONDS = 3_000;
 
+export interface ReceivedDriverOffer extends DriverOfferView {
+  readonly receivedAtMilliseconds: number;
+}
+
 type DriverRead =
   | { status: 'loading' | 'disconnected' | 'sessionRequired' }
-  | { status: 'ready'; state: DriverStateView; offer: DriverOfferView | null };
+  | { status: 'ready'; state: DriverStateView; offer: ReceivedDriverOffer | null };
 
 export function useDriverState() {
   const [view, setView] = useState<DriverRead>({ status: 'loading' });
@@ -58,6 +62,9 @@ async function readDriver(signal: AbortSignal): Promise<DriverRead> {
   return {
     status: 'ready',
     state: state.value,
-    offer: !state.value.trip && pending.ok ? pending.value : null,
+    offer:
+      !state.value.trip && pending.ok && pending.value
+        ? { ...pending.value, receivedAtMilliseconds: pending.receivedAtMilliseconds }
+        : null,
   };
 }

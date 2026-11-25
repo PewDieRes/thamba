@@ -13,6 +13,8 @@ export type PendingOfferView = {
   readonly pickupLandmarkId: LandmarkId;
   readonly pickupCue: string;
   readonly expiresAtEpochMilliseconds: number;
+  readonly serverNow: number;
+  readonly remainingMilliseconds: number;
 };
 
 interface PendingOfferViewInput {
@@ -41,6 +43,8 @@ export function projectPendingOfferView(
       pickupLandmarkId: state.fare.route.pickupLandmarkId,
       pickupCue: input.pickupCue,
       expiresAtEpochMilliseconds: offer.expiresAt.epochMilliseconds,
+      serverNow: now.epochMilliseconds,
+      remainingMilliseconds: offer.expiresAt.epochMilliseconds - now.epochMilliseconds,
     }),
   );
 }

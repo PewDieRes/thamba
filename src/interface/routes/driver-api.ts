@@ -31,8 +31,10 @@ export async function postDriver<Route extends DriverRoute>(
       cache: 'no-store',
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
-    if (response.ok)
-      return { ok: true as const, value: (await response.json()) as DriverResponse<Route> };
+    if (response.ok) {
+      const value = (await response.json()) as DriverResponse<Route>;
+      return { ok: true as const, value, receivedAtMilliseconds: performance.now() };
+    }
     const error: unknown = await response.json().catch(() => null);
     const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
     return { ok: false as const, code, status: response.status };

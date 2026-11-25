@@ -1,13 +1,13 @@
 'use client';
 
-import type { DriverOfferView, DriverStateView } from '@application/contracts/driver-state-view';
+import type { DriverStateView } from '@application/contracts/driver-state-view';
 import type { Locale } from '@application/contracts/town-overview-view';
 import type { DriverCopy } from '../ui/driver/driver-copy';
 import { DriverDashboard } from '../ui/driver/driver-dashboard';
 import { DriverOffer } from '../ui/driver/driver-offer';
 import { DriverTrip } from '../ui/driver/driver-trip';
 import { useDriverCommands } from './driver-commands';
-import { useDriverState } from './driver-state';
+import { useDriverState, type ReceivedDriverOffer } from './driver-state';
 
 export function DriverFlow({ copy, locale }: { copy: DriverCopy; locale: Locale }) {
   const { view, refresh } = useDriverState();
@@ -31,13 +31,13 @@ export function DriverFlow({ copy, locale }: { copy: DriverCopy; locale: Locale 
 
 interface DriverWorkProps {
   state: DriverStateView;
-  offer: DriverOfferView | null;
+  offer: ReceivedDriverOffer | null;
   context: { copy: DriverCopy; locale: Locale; commands: ReturnType<typeof useDriverCommands> };
 }
 
 function DriverWork({ state, offer, context }: DriverWorkProps) {
   const { copy, locale, commands } = context;
-  const { isBusy, run, markOfferUnavailable, dismissedOfferId } = commands;
+  const { isBusy, run, dismissedOfferId } = commands;
   const { trip, driverId, availability } = state;
   const props = { copy, locale, isBusy };
   if (trip)
@@ -58,7 +58,7 @@ function DriverWork({ state, offer, context }: DriverWorkProps) {
           key={offer.offerId}
           offer={offer}
           onRespond={(action) => {
-            respondToOffer(offer, action, { run, markOfferUnavailable });
+            void run({ route: 'respond', action, offerId: offer.offerId });
           }}
         />
       )}
@@ -72,16 +72,4 @@ function DriverWork({ state, offer, context }: DriverWorkProps) {
       />
     </>
   );
-}
-
-function respondToOffer(
-  offer: DriverOfferView,
-  action: 'accept' | 'decline',
-  {
-    run,
-    markOfferUnavailable,
-  }: Pick<ReturnType<typeof useDriverCommands>, 'run' | 'markOfferUnavailable'>,
-) {
-  if (Date.now() >= offer.expiresAtEpochMilliseconds) markOfferUnavailable(offer.offerId);
-  else void run({ route: 'respond', action, offerId: offer.offerId });
 }

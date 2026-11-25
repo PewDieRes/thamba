@@ -70,7 +70,9 @@ Each Town can configure a positive offer timeout, defaulting to **60 seconds**. 
 | O4 | `pending` → `expired` | Dispatch advances, or a response, cancellation or availability command closes a due offer | `now >= expiresAt`. Release the reservation and apply the expiry rotation rule. | `RideOfferExpired` |
 | O5 | `pending` → `withdrawn` | Rider cancels, Driver or Stand Coordinator takes the Driver out of rotation, or Dispatch closes for loss of Town authority | `now < expiresAt` and the relevant cancellation, availability or authority guard holds. Release the reservation and apply the withdrawal rotation rule. Record the reason. | `RideOfferWithdrawn` |
 
-The Driver's pending-offer view contains the pickup Landmark, pickup cue and deadline as its route-related details. The destination, Route ID, fare and Rider details stay out of pre-accept reads, events delivered to Drivers, notifications and retained client data. An authorized Trip view exposes destination and fare to the assigned Driver after acceptance commits.
+The Driver's pending-offer view contains the pickup Landmark, pickup cue and deadline as its route-related details. The destination, Route ID, fare and Rider details stay out of pre-accept reads, events delivered to Drivers, notifications and retained client data. An authorized Trip view exposes destination and fare to the assigned Driver after acceptance commits. The pending-offer response includes the server observation time and remaining duration. The Driver screen counts down using monotonic time elapsed since receipt, and the server decides whether a response arrived before expiry.
+
+Rider contact is available to a matched Driver with an active device during an active Trip and to an active Coordinator of the original or assigned Stand in the same Town and run. Both reads honor the contact purge deadline.
 
 ## Fair rotation
 
