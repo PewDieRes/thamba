@@ -1,1 +1,10 @@
-{}
+{
+  "invite": {
+    "title": "Driver invite",
+    "instructions": "Confirm to link this browser to your Driver record.",
+    "confirm": "Accept invite",
+    "confirmed": "This browser is linked to your Driver record.",
+    "failed": "The invite could not be accepted. Try again or contact your Coordinator.",
+    "missing": "Open the link from your Coordinator."
+  }
+}
