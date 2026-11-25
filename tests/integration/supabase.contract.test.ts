@@ -1,3 +1,5 @@
+import { coordinatorOperationsContract } from '../contract/coordinator-operations.contract';
+import { preparePostgresOperations } from './coordinator-operations-postgres.fixtures';
 import { matchedRiderContactReaderContract } from '../contract/matched-rider-contact-reader.contract';
 import {
   cleanContactCoordinators,
@@ -35,6 +37,7 @@ import {
   prepareScopedConnections,
 } from './scoped-database.fixtures';
 import { registerSessionTests } from './supabase-session.fixtures';
+import { registerDemoRunIsolationTest } from './demo-run-isolation.fixtures';
 import { registerSupabaseJourney } from './supabase-journey.fixtures';
 
 beforeAll(() => {
@@ -51,6 +54,7 @@ afterAll(() => {
 
 describe('Supabase adapters', () => {
   registerRepositoryContracts();
+  coordinatorOperationsContract(preparePostgresOperations);
   matchedRiderContactReaderContract(createPostgresContactReader);
   unitOfWorkContract(async () => (await prepareContractDatabase('unitOfWork')).unitOfWork);
   demoRunProvisionerContract(async () => {
@@ -67,6 +71,7 @@ describe('Supabase adapters', () => {
     });
   });
   registerSupabaseJourney();
+  registerDemoRunIsolationTest();
   registerSessionTests();
   registerPostgresScopeTests();
 });

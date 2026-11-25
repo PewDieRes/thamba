@@ -8,7 +8,7 @@ try {
   if (error.code !== 'ENOENT') throw error;
 }
 
-const PORT = 3100;
+const PORT = 3000;
 const origin = `http://127.0.0.1:${PORT}`;
 const MOBILE_VIEWPORT_WIDTH_PX = 360;
 const MOBILE_VIEWPORT_HEIGHT_PX = 800;
@@ -20,12 +20,18 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'mobile-chrome',
+      testIgnore: '**/*-desktop.spec.ts',
       use: {
         ...devices['Pixel 7'],
         viewport: { width: MOBILE_VIEWPORT_WIDTH_PX, height: MOBILE_VIEWPORT_HEIGHT_PX },
         screen: { width: MOBILE_VIEWPORT_WIDTH_PX, height: MOBILE_VIEWPORT_HEIGHT_PX },
         locale: 'mr-IN',
       },
+    },
+    {
+      name: 'desktop-chrome',
+      testMatch: '**/*-desktop.spec.ts',
+      use: { ...devices['Desktop Chrome'], locale: 'en-IN' },
     },
   ],
   use: { baseURL: origin, trace: 'retain-on-failure' },
