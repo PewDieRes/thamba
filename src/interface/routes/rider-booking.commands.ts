@@ -4,7 +4,11 @@ import type { RiderCopy } from '../ui/rider/rider-copy';
 import { postRider } from './rider-api';
 import { readRideInput, type mapRiderForm, type RideFormValues } from './rider-form.mapper';
 
-export type FlowProps = ReturnType<typeof mapRiderForm> & { townName: string; copy: RiderCopy };
+export type FlowProps = ReturnType<typeof mapRiderForm> & {
+  townName: string;
+  copy: RiderCopy;
+  demoRun?: (DemoRun & { templateStandId: string }) | undefined;
+};
 export type QuoteState = {
   quote: FareQuoteView;
   standId: string;
@@ -85,10 +89,10 @@ export async function confirmBooking(
 async function getBookingScope(
   runs: Map<string, DemoRun>,
   standId: string,
-  { isDemo, townId }: FlowProps,
+  { isDemo, townId, demoRun }: FlowProps,
 ) {
   if (!isDemo) return { ok: true, value: { standId, demoRun: {} } } as const;
-  let run = runs.get(standId);
+  let run = demoRun?.templateStandId === standId ? demoRun : runs.get(standId);
   if (!run) {
     const response = await postRider<DemoRun>('demo-run', { townId, standId });
     if (!response.ok) return response;

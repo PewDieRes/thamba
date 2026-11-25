@@ -3,6 +3,9 @@ import type { ActorContext } from '@application/ports/actor-context';
 import type { CookieMethodsServer } from '@supabase/ssr';
 import type { Transaction, UnitOfWork } from '@application/ports/unit-of-work';
 import { ACTIVE_BOOKING_STATUSES } from '@domain/dispatch/booking-status';
+import { PostgresCoordinatorDashboardReader } from '../supabase/postgres-coordinator-dashboard-reader';
+import { PostgresDemoComplaintWriter } from '../supabase/postgres-demo-complaint-writer';
+import { buildCoordinatorDashboard, buildDemoComplaint } from './operations-wiring';
 import { SystemClock } from '../clock/system-clock';
 import { HmacInviteTokenGenerator } from '../memory/hmac-invite-token-generator';
 import { InMemoryDriverNotifier } from '../memory/in-memory-driver-notifier';
@@ -58,9 +61,12 @@ import { SupabaseUnitOfWork } from '../supabase/supabase-unit-of-work';
 import { domainValues, toInstant } from './domain-values';
 import { decodeInviteTokenSecret } from './invite-token.configuration';
 import { createContainer, type ContainerPorts } from './use-case-wiring';
-
-export { getRequestIp, logSweepCounts, verifySweepAuthorization } from './security-wiring';
-export { sweepActorContext };
+export {
+  getRequestIp,
+  logSweepCounts,
+  sweepActorContext,
+  verifySweepAuthorization,
+} from './security-wiring';
 export {
   buildCoordinatorSignIn,
   buildCompleteCoordinatorSignIn,
@@ -118,9 +124,8 @@ export function createConfiguredContainer(
   overrides: Partial<ContainerPorts> = {},
 ) {
   if (configuration.backend === 'memory') return createInMemoryContainer(overrides);
-  const tokens = new HmacInviteTokenGenerator(
-    decodeInviteTokenSecret(configuration.inviteTokenSecret),
-  );
+  const secret = decodeInviteTokenSecret(configuration.inviteTokenSecret);
+  const tokens = new HmacInviteTokenGenerator(secret);
   if (configuration.backend === 'supabase') {
     return createApplicationContainer(createSupabasePersistence(configuration).unitOfWork, {
       ...overrides,
@@ -137,51 +142,46 @@ export function createConfiguredContainer(
     : undefined;
   return createApplicationContainer(createPersistence(storage).unitOfWork, {
     demoRuns: new PostgresDemoRunProvisioner(writer),
-    matchedRiderContacts: new PostgresMatchedRiderContactReader(() =>
-      getPostgresConnection(getDatabaseUrl('reader')),
-    ),
+    matchedRiderContacts: new PostgresMatchedRiderContactReader(() => connect('reader')),
     ...(dueBookings ? { dueBookings } : {}),
     ...overrides,
     tokens,
   });
 }
 export function createDispatchSweepContainer() {
-  return createConfiguredContainer(readStorageConfiguration('sweep'), {
-    actorContext: sweepActorContext,
-  });
+  const configuration = readStorageConfiguration('sweep');
+  return createConfiguredContainer(configuration, { actorContext: sweepActorContext });
 }
 export function createSupabasePersistence(configuration: SupabaseConfiguration) {
   const client = createProvisioningClient(configuration);
   return createPersistence(new SupabaseStorage(client, configuration.commandScope));
 }
 function createPersistence(storage: RepositoryBackend) {
-  return {
-    transaction: createSupabaseTransaction(storage),
-    unitOfWork: new SupabaseUnitOfWork(storage, createSupabaseTransaction),
-  };
+  const unitOfWork = new SupabaseUnitOfWork(storage, createSupabaseTransaction);
+  return { unitOfWork, transaction: createSupabaseTransaction(storage) };
 }
-
 export function createAuthSession(cookies: CookieMethodsServer) {
-  const reader = getPostgresConnection(getDatabaseUrl('reader'));
-  return new SupabaseAuthSession(
-    createAuthClient(cookies),
-    new PostgresSessionMembershipReader(reader),
-  );
+  const memberships = new PostgresSessionMembershipReader(connect('reader'));
+  return new SupabaseAuthSession(createAuthClient(cookies), memberships);
 }
 export function createRiderBookingReader(session: ActorContext) {
-  return new PostgresRiderBookingReader(
-    getPostgresConnection(getDatabaseUrl('reader')),
-    session,
-    domainValues,
-  );
+  return new PostgresRiderBookingReader(connect('reader'), session, domainValues);
 }
-export function createCoordinatorDirectory() {
-  return new PostgresCoordinatorDirectory(getPostgresConnection(getDatabaseUrl('reader')));
+export const createCoordinatorDirectory = () => new PostgresCoordinatorDirectory(connect('reader'));
+export function createCoordinatorDashboard(actors: ActorContext) {
+  const reader = new PostgresCoordinatorDashboardReader(connect('reader'));
+  return buildCoordinatorDashboard({ actors, reader, clock: new SystemClock(toInstant) });
+}
+export function createDemoComplaint(actorContext: ActorContext) {
+  const complaints = new PostgresDemoComplaintWriter(connect('writer'));
+  return buildDemoComplaint({ actorContext, complaints, clock: new SystemClock(toInstant) });
 }
 export function createRequestRateLimit() {
-  return new PostgresRequestRateLimit(getPostgresConnection(getDatabaseUrl('writer')));
+  return new PostgresRequestRateLimit(connect('writer'));
 }
-
+function connect(role: Parameters<typeof getDatabaseUrl>[0]) {
+  return getPostgresConnection(getDatabaseUrl(role));
+}
 function createSupabaseTransaction(storage: RepositoryStorage): Transaction {
   return {
     bookings: new SupabaseBookingRepository(storage, domainValues, ACTIVE_BOOKING_STATUSES),

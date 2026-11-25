@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Locale } from '@application/contracts/town-overview-view';
 import type { RiderStatusView } from '@application/contracts/rider-status-view';
 import { BookingNotices } from '../ui/rider/booking-notices';
+import { DemoComplaint } from '../ui/rider/demo-complaint';
 import { BookingStatus } from '../ui/rider/booking-status';
 import type { RiderCopy } from '../ui/rider/rider-copy';
 import { localizeConfiguredContact } from './rider-display.mapper';
@@ -44,6 +45,7 @@ export function RiderStatusFlow({ bookingId, locale, copy }: StatusFlowProps) {
         )}
         copy={copy}
       />
+      {status?.demoRun && <DemoComplaint copy={copy.demoFlow} {...status.demoRun} />}
     </>
   );
 }

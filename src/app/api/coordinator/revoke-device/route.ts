@@ -8,7 +8,7 @@ import { createCommandRoute } from '@interface/routes/command-route';
 import { guardArea } from '@interface/routes/route-guards';
 import { z } from 'zod';
 
-const schema = z.strictObject({ standId: z.uuid().toLowerCase(), driverId: z.uuid(), commandKey });
+const schema = z.strictObject({ standId: z.guid().toLowerCase(), driverId: z.guid(), commandKey });
 
 export async function POST(request: Request) {
   const session = createAuthSession(await getRequestCookies());

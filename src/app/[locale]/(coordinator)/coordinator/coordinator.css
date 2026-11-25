@@ -1,0 +1,78 @@
+.shell:has(.coordinator-dashboard) {
+  width: min(100% - 2rem, 78rem);
+}
+
+.coordinator-dashboard {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.coordinator-dashboard section {
+  min-width: 0;
+}
+
+.coordinator-tables {
+  display: grid;
+  gap: 2rem;
+}
+
+@media (min-width: 64rem) {
+  .coordinator-tables {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.coordinator-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.coordinator-actions button {
+  min-height: 44px;
+}
+
+.coordinator-invite {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+
+.coordinator-invite input {
+  width: 100%;
+}
+
+.coordinator-dashboard ol {
+  padding-inline-start: 1.5rem;
+}
+
+.coordinator-dashboard li ul {
+  margin-block-end: 0.75rem;
+}
+
+.coordinator-dashboard .table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--edge);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.coordinator-dashboard table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.coordinator-dashboard :is(th, td, caption) {
+  padding: 0.75rem;
+  text-align: start;
+  vertical-align: top;
+}
+
+.coordinator-dashboard :is(th, td) {
+  border-block-start: 1px solid var(--edge);
+}
+
+.coordinator-dashboard td:has(.coordinator-actions) {
+  min-width: 15rem;
+}
