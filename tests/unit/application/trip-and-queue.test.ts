@@ -58,7 +58,7 @@ test('Coordinator skip resolves the reservation and records the reason after aut
       actor: { ...actor, standId: OTHER_STAND },
       reason: 'skip',
     }),
-  ).toMatchObject({ ok: false, error: { code: 'not_found' } });
+  ).toMatchObject({ ok: false, error: { code: 'forbidden' } });
   expect(
     unwrap(await app.setDriverAvailability.execute({ ...input, reason: 'skip' })).availability,
   ).toBe('offline');

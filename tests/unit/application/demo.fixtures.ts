@@ -1,3 +1,4 @@
+import { createTestActorContext } from './test-actor-context.fixtures';
 import type { WriteResult } from '@application/ports/application-result';
 import type { Transaction } from '@application/ports/unit-of-work';
 import { ok } from '@domain/shared/result';
@@ -46,7 +47,9 @@ export const inviteInput = {
 
 export async function createDemo(options: Parameters<typeof createInMemoryContainer>[0] = {}) {
   const clock = new FixedClock(NOW);
-  const app = createInMemoryContainer({ clock, ...options });
+  const fixture = createTestActorContext();
+  const app = createInMemoryContainer({ clock, ...fixture, ...options });
+  if (!options.actorContext) fixture.wrap(app);
   unwrap(await app.unitOfWork.run(seedDemo));
   return {
     ...app,

@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, test } from 'vitest';
+import { registerPostgresScopeTests } from './postgres-scope-isolation.fixtures';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { bookingRepositoryContract } from '../contract/booking-repository.contract';
 import { commandLogContract } from '../contract/command-log.contract';
 import { driverDeviceRepositoryContract } from '../contract/driver-device-repository.contract';
@@ -19,9 +20,16 @@ import {
   prepareContractDatabase,
 } from './contract-database.fixtures';
 import { offerContractRepository, tripContractRepository } from './dispatch-contract.fixtures';
+import { dropScopedConnections, prepareScopedConnections } from './scoped-database.fixtures';
+import { registerSessionTests } from './supabase-session.fixtures';
 import { registerSupabaseJourney } from './supabase-journey.fixtures';
 
+beforeAll(() => {
+  prepareScopedConnections();
+});
+
 afterAll(() => {
+  dropScopedConnections();
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) cleanContractDatabase();
 });
 
@@ -29,6 +37,8 @@ describe('Supabase adapters', () => {
   registerRepositoryContracts();
   unitOfWorkContract(async () => (await prepareContractDatabase('unitOfWork')).unitOfWork);
   registerSupabaseJourney();
+  registerSessionTests();
+  registerPostgresScopeTests();
 });
 
 function registerRepositoryContracts() {

@@ -5,6 +5,6 @@ test('IssueDriverInvite applies its Demo Town rules', async () => {
   const app = await createDemo();
   expect(await app.issueDriverInvite.execute(inviteInput)).toMatchObject({
     ok: true,
-    value: { token: expect.any(String) as unknown },
+    value: { url: expect.stringMatching(/^\/mr\/driver\/invite#/) as unknown },
   });
 });

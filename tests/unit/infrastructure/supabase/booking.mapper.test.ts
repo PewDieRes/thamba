@@ -4,7 +4,7 @@ import { toBookingRow, fromBookingRow } from '@infrastructure/supabase/booking.m
 import { domainValues } from '@infrastructure/composition/domain-values';
 
 test('rehydrates a requested Booking with its fare and captured Stand order', () => {
-  const row = { ...toBookingRow(BOOKING), version: 3 };
+  const row = { ...toBookingRow(BOOKING, domainValues.bookingDueAt), version: 3 };
   const restored = fromBookingRow(row, domainValues);
   expect(restored).toEqual({ value: BOOKING, version: 3 });
   expect(restored.value.state.dispatchDeadline?.epochMilliseconds).toBe(

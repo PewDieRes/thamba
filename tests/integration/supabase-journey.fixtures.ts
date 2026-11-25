@@ -1,3 +1,4 @@
+import { createTestActorContext } from '../unit/application/test-actor-context.fixtures';
 import { expect, test } from 'vitest';
 import type { BookingId } from '@domain/shared/ids.value-object';
 import type { Transaction } from '@application/ports/unit-of-work';
@@ -19,11 +20,17 @@ function createSupabaseApp() {
     ...getLocalConfiguration(),
     inviteTokenSecret: Buffer.alloc(32, 1).toString('base64'),
   };
-  return createConfiguredContainer(configuration, { clock: new FixedClock(NOW) });
+  const fixture = createTestActorContext();
+  return fixture.wrap(
+    createConfiguredContainer(configuration, { clock: new FixedClock(NOW), ...fixture }),
+  );
 }
 
 export function registerSupabaseJourney() {
-  test('redeems an invite replayed through a second server container', redeemReplayedInvite);
+  test(
+    'redeems an invite through a second server container without re-disclosing it',
+    redeemReplayedInvite,
+  );
 
   test('commits and replays a Demo Town ride through the server container', async () => {
     const { transaction } = await prepareContractDatabase('quotes');
@@ -72,15 +79,15 @@ async function redeemReplayedInvite() {
   const input = { ...inviteInput, driverId: DRIVER_ONE };
   const issued = unwrap(await createSupabaseApp().issueDriverInvite.execute(input));
   const secondApp = createSupabaseApp();
-  const replayed = unwrap(await secondApp.issueDriverInvite.execute(input));
+  const replayed = await secondApp.issueDriverInvite.execute(input);
   const redeemed = await secondApp.redeemDriverInvite.execute({
-    token: replayed.token,
+    token: issued.url.split('#')[1],
     subject: SUBJECT_ONE,
     commandKey: 'redeem-invite',
   });
 
   expect(redeemed).toEqual({ ok: true, value: { status: 'active', driverId: DRIVER_ONE } });
-  expect(replayed).toEqual(issued);
+  expect(replayed).toMatchObject({ ok: false, error: { code: 'invite_already_issued' } });
   const events = await transaction.events.list();
   expect(events.filter(({ event }) => event.type === 'DriverInviteIssued')).toHaveLength(1);
 }

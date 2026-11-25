@@ -129,9 +129,13 @@ test('failed invite issue, redemption and revocation are retryable without parti
   const { app } = fixture;
   const issue = () => app.issueDriverInvite.execute(inviteInput);
   await expectWriteRollbacks(fixture, issue, ['invites', 'events']);
-  const { token } = unwrap(await issue());
+  const { url } = unwrap(await issue());
   const bind = () =>
-    app.redeemDriverInvite.execute({ subject: NEW_SUBJECT, token, commandKey: 'bind' });
+    app.redeemDriverInvite.execute({
+      subject: NEW_SUBJECT,
+      token: url.split('#')[1],
+      commandKey: 'bind',
+    });
   await expectWriteRollbacks(fixture, bind, ['invites', 'devices', 'events']);
   expect(unwrap(await bind()).status).toBe('active');
   const revoke = () =>
