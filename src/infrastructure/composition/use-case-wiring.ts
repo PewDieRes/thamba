@@ -1,3 +1,4 @@
+import type { DispatchAdvancer } from '@application/ports/dispatch-advancer';
 import { StartAnonymousSession } from '@application/use-cases/start-anonymous-session/start-anonymous-session.use-case';
 import { createStartAnonymousSessionSchema } from '@application/use-cases/start-anonymous-session/start-anonymous-session.input';
 import { StartDemoRun } from '@application/use-cases/start-demo-run/start-demo-run.use-case';
@@ -58,6 +59,7 @@ import { zodInputSchema } from './zod-input-schema';
 export interface ContainerPorts extends CommandDependencies {
   readonly demoRuns: DemoRunProvisioner;
   readonly riderBookings: RiderBookingReader;
+  readonly riderDispatchAdvancer?: DispatchAdvancer;
   readonly dueBookings: DueBookings;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -90,7 +92,10 @@ export function createContainer(ports: ContainerPorts) {
     ...createDriverCommands(dependencies),
     cancelBooking: new CancelBooking(dependencies, schema(createCancelBookingSchema)),
     getBookingStatusForRider: new GetBookingStatusForRider(
-      ports,
+      {
+        ...ports,
+        ...(ports.riderDispatchAdvancer && { advanceDispatch: ports.riderDispatchAdvancer }),
+      },
       schema(createGetBookingStatusForRiderSchema),
     ),
     getPendingOfferForDriver: new GetPendingOfferForDriver(

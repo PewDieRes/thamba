@@ -1,7 +1,12 @@
 import type { LandmarkId, StandId } from '@domain/shared/ids.value-object';
 import type { BookingScope } from '@domain/town/town';
 
+import type { Translations } from '../contracts/town-overview-view';
+
 export interface Stand extends BookingScope {
+  readonly name?: string;
+  readonly names?: Translations;
+  readonly coordinatorContacts?: Translations;
   readonly standId: StandId;
   readonly pickupCues: Readonly<Partial<Record<LandmarkId, string>>>;
   readonly neighbourStandIds: readonly StandId[];

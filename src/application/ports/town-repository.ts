@@ -2,7 +2,17 @@ import type { Duration } from '@domain/shared/duration.value-object';
 import type { DemoRunId, RiderId, TownId } from '@domain/shared/ids.value-object';
 import type { Town } from '@domain/town/town';
 
+import type {
+  CatalogueLandmark,
+  CatalogueStand,
+  Translations,
+} from '../contracts/town-overview-view';
+
 export interface TownRecord {
+  readonly names?: Translations;
+  readonly grievanceContacts?: Translations;
+  readonly landmarks?: readonly CatalogueLandmark[];
+  readonly stands?: readonly CatalogueStand[];
   readonly town: Town;
   readonly slug: string;
   readonly name: string;
@@ -21,3 +31,5 @@ export interface TownRepository {
   findBySlug(slug: string): Promise<Versioned<TownRecord> | undefined>;
   save(value: TownRecord, expectedVersion: ExpectedVersion): Promise<WriteResult>;
 }
+
+export type { CatalogueLandmark, CatalogueStand, Translations };

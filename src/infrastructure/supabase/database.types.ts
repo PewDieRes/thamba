@@ -628,10 +628,14 @@ export type Database = {
           id: string;
           is_synthetic: boolean;
           name: string;
+          name_translations: Json;
+          phone_e164: string | null;
           run_scope_id: string;
+          scripted_steps: Json | null;
           stand_id: string;
           town_id: string;
           updated_at: string;
+          vehicle_number: string | null;
           version: number;
         };
         ComputedFields: never;
@@ -640,10 +644,14 @@ export type Database = {
           id?: string;
           is_synthetic?: boolean;
           name: string;
+          name_translations?: Json;
+          phone_e164?: string | null;
           run_scope_id: string;
+          scripted_steps?: Json | null;
           stand_id: string;
           town_id: string;
           updated_at?: string;
+          vehicle_number?: string | null;
           version?: number;
         };
         Update: {
@@ -651,10 +659,14 @@ export type Database = {
           id?: string;
           is_synthetic?: boolean;
           name?: string;
+          name_translations?: Json;
+          phone_e164?: string | null;
           run_scope_id?: string;
+          scripted_steps?: Json | null;
           stand_id?: string;
           town_id?: string;
           updated_at?: string;
+          vehicle_number?: string | null;
           version?: number;
         };
         Relationships: [

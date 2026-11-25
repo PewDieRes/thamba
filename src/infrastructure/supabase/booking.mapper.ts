@@ -2,7 +2,8 @@ import type { RiderBookingRecord } from '@application/ports/rider-booking-reader
 import type { Booking } from '@domain/dispatch/booking';
 import type { BookingState, PendingBookingOffer } from '@domain/dispatch/booking-state';
 import type { ActiveTrip } from '@domain/trip/trip';
-import type { Tables } from './database.types';
+import type { Json, Tables } from './database.types';
+import { readTranslations } from './catalogue.mapper';
 import type { DomainValues } from './domain-values';
 import {
   mapOptional,
@@ -120,7 +121,14 @@ export type RiderBookingRow = Pick<
   | 'pickup_at'
   | 'no_driver_found_reason'
 > &
-  RouteRow;
+  RouteRow & {
+    matched_driver?: {
+      name: string;
+      name_translations: Json;
+      vehicle_number: string | null;
+      phone: string | null;
+    } | null;
+  };
 
 export function fromRiderBookingRow(
   row: RiderBookingRow,
@@ -138,9 +146,29 @@ export function fromRiderBookingRow(
       amount: unpack(domain.money(row.fare_in_paise)),
     },
     ...readOptionalInstant('pickupAt', row.pickup_at, domain),
+    ...mapOptional('matchedDriver', readMatchedDriver(row.matched_driver)),
     ...mapOptional(
       'noDriverFoundReason',
       row.no_driver_found_reason as BookingState['noDriverFoundReason'],
     ),
   };
+}
+
+function readMatchedDriver(row: RiderBookingRow['matched_driver']) {
+  if (!row) return undefined;
+  return {
+    firstName: toFirstName(row.name),
+    names: Object.fromEntries(
+      Object.entries(readTranslations(row.name_translations)).map(([locale, name]) => [
+        locale,
+        toFirstName(name),
+      ]),
+    ),
+    ...mapOptional('vehicleNumber', row.vehicle_number),
+    ...mapOptional('phone', row.phone),
+  };
+}
+
+function toFirstName(name: string) {
+  return name.trim().split(/\s+/u)[0] ?? '';
 }

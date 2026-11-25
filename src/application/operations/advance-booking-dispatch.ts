@@ -16,6 +16,7 @@ import { canBookTown, getDispatchSettings, sameScope } from './booking-authority
 import { mapBookingProgress } from './booking.mapper';
 import { commit, type CommandDecision } from './execute-command';
 import { planDispatch } from './dispatch-snapshot';
+import { advanceDemoDriver } from './advance-demo-driver';
 import { saveBookingDecision } from './save-booking-decision';
 import { saveOfferResolution } from './save-offer-resolution';
 
@@ -43,6 +44,8 @@ export async function advanceBookingDispatch(
   const { state } = current.value;
   const town = (await tx.towns.get(state.townId))?.value;
   const context = { ...options, town };
+  const simulated = await advanceDemoDriver(tx, current, context);
+  if (simulated) return simulated;
   if (state.status !== 'scheduled') return advanceActive(tx, current, context);
   if (!isScheduleDue(state, options.now)) return commit(mapBookingProgress(current.value));
 
