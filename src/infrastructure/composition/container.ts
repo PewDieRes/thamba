@@ -41,16 +41,23 @@ import { SupabaseTownRepository } from '../supabase/supabase-town-repository';
 import { SupabaseTripRepository } from '../supabase/supabase-trip-repository';
 import { SupabaseUnitOfWork } from '../supabase/supabase-unit-of-work';
 import { domainValues } from './domain-values';
+import { decodeInviteTokenSecret } from './invite-token.configuration';
 import { createContainer, type ContainerPorts } from './use-case-wiring';
 
 export { createContainer } from './use-case-wiring';
 
+const IN_MEMORY_INVITE_TOKEN_SECRET = Buffer.from('thamba-in-memory-invite-token-test-secret');
+
 export function createInMemoryContainer(overrides: Partial<ContainerPorts> = {}) {
   const unitOfWork = overrides.unitOfWork ?? new InMemoryUnitOfWork(createMemoryTransaction);
-  return createApplicationContainer(unitOfWork, overrides);
+  const tokens = overrides.tokens ?? new HmacInviteTokenGenerator(IN_MEMORY_INVITE_TOKEN_SECRET);
+  return createApplicationContainer(unitOfWork, { ...overrides, tokens });
 }
 
-function createApplicationContainer(unitOfWork: UnitOfWork, overrides: Partial<ContainerPorts>) {
+function createApplicationContainer(
+  unitOfWork: UnitOfWork,
+  overrides: Partial<ContainerPorts> & Pick<ContainerPorts, 'tokens'>,
+) {
   const notifier = overrides.notifier ?? new InMemoryDriverNotifier();
   const useCases = createContainer({
     unitOfWork,
@@ -59,7 +66,7 @@ function createApplicationContainer(unitOfWork: UnitOfWork, overrides: Partial<C
     hasher: overrides.hasher ?? new Sha256CommandHasher(),
     ids: overrides.ids ?? new RandomIdGenerator(),
     logger: overrides.logger ?? new InMemoryLogger(),
-    tokens: overrides.tokens ?? new HmacInviteTokenGenerator(),
+    tokens: overrides.tokens,
   });
   return { ...useCases, unitOfWork, notifier };
 }
@@ -94,13 +101,19 @@ type SupabaseConfiguration = {
   readonly commandScope?: CommandScope;
 };
 
-type StorageConfiguration = { readonly backend: 'memory' } | SupabaseConfiguration;
+type StorageConfiguration =
+  | { readonly backend: 'memory' }
+  | (SupabaseConfiguration & { readonly inviteTokenSecret: string | undefined });
 
 function readStorageConfiguration(): StorageConfiguration {
   if (process.env.NODE_ENV === 'test') return { backend: 'memory' };
-  const { SUPABASE_URL: url, SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey } = process.env;
+  const {
+    SUPABASE_URL: url,
+    SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
+    INVITE_TOKEN_SECRET: inviteTokenSecret,
+  } = process.env;
   if (!url || !serviceRoleKey) throw new Error('Missing server Supabase configuration');
-  return { backend: 'supabase', url, serviceRoleKey };
+  return { backend: 'supabase', url, serviceRoleKey, inviteTokenSecret };
 }
 
 export function createConfiguredContainer(
@@ -108,7 +121,13 @@ export function createConfiguredContainer(
   overrides: Partial<ContainerPorts> = {},
 ) {
   if (configuration.backend === 'memory') return createInMemoryContainer(overrides);
-  return createApplicationContainer(createSupabasePersistence(configuration).unitOfWork, overrides);
+  const tokens = new HmacInviteTokenGenerator(
+    decodeInviteTokenSecret(configuration.inviteTokenSecret),
+  );
+  return createApplicationContainer(createSupabasePersistence(configuration).unitOfWork, {
+    ...overrides,
+    tokens,
+  });
 }
 
 export function createSupabasePersistence(configuration: SupabaseConfiguration) {
