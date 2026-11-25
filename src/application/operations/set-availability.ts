@@ -1,3 +1,4 @@
+import type { AvailabilityReason } from '../ports/event-log';
 import type { DriverActor, StandCoordinatorActor } from '@domain/dispatch/booking-events';
 import { getDispatchBlock } from '@domain/dispatch/booking-request';
 import type { DeclinePenaltyPolicy } from '@domain/dispatch/decline-penalty.policy';
@@ -19,7 +20,7 @@ interface AvailabilityChange {
   readonly actor: DriverActor | StandCoordinatorActor;
   readonly driverId: DriverId;
   readonly isOnline: boolean;
-  readonly reason?: 'skip' | 'walk_up' | undefined;
+  readonly reason?: AvailabilityReason | undefined;
 }
 
 interface AvailabilityOptions {

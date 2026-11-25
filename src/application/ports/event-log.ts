@@ -5,6 +5,8 @@ import type { Instant } from '@domain/shared/instant.value-object';
 import type { BookingScope } from '@domain/town/town';
 import type { WriteResult } from './application-result';
 
+export type AvailabilityReason = 'break' | 'offline' | 'skip' | 'walk_up';
+
 export interface DriverQueueChanged extends BookingScope {
   readonly type: 'DriverQueueChanged';
   readonly actor: BookingActor;
@@ -15,6 +17,7 @@ export interface DriverQueueChanged extends BookingScope {
   readonly reason:
     | 'available'
     | 'offline'
+    | 'break'
     | 'skip'
     | 'walk_up'
     | 'reserved'
@@ -22,7 +25,7 @@ export interface DriverQueueChanged extends BookingScope {
     | 'declined'
     | 'expired'
     | 'withdrawn';
-  readonly availabilityReason?: 'skip' | 'walk_up';
+  readonly availabilityReason?: AvailabilityReason;
   readonly before: DriverQueueEntry;
   readonly after: DriverQueueEntry;
   readonly eligibleDriverIds?: readonly DriverId[];

@@ -6,7 +6,7 @@ import type { BookingId, DriverId } from '@domain/shared/ids.value-object';
 import type { Instant } from '@domain/shared/instant.value-object';
 import type { WriteResult } from '../ports/application-result';
 import type { ScopedQueueEntry } from '../ports/driver-queue-repository';
-import type { DriverQueueChanged } from '../ports/event-log';
+import type { AvailabilityReason, DriverQueueChanged } from '../ports/event-log';
 import type { IdGenerator } from '../ports/id-generator';
 import type { Transaction } from '../ports/unit-of-work';
 import type { ExpectedVersion, Versioned } from '../ports/versioned';
@@ -37,7 +37,7 @@ interface QueueChange {
   readonly actor: BookingActor;
   readonly now: Instant;
   readonly reason: DriverQueueChanged['reason'];
-  readonly availabilityReason?: 'skip' | 'walk_up' | undefined;
+  readonly availabilityReason?: AvailabilityReason | undefined;
   readonly bookingId?: BookingId;
   readonly eligibleDriverIds?: readonly DriverId[];
 }

@@ -17,7 +17,11 @@ export interface TownRecord {
   readonly slug: string;
   readonly name: string;
   readonly grievanceContact: string;
-  readonly demoRuns: readonly { readonly demoRunId: DemoRunId; readonly riderId: RiderId }[];
+  readonly demoRuns: readonly {
+    readonly demoRunId: DemoRunId;
+    readonly riderId: RiderId;
+    readonly expiresAtEpochMilliseconds?: number;
+  }[];
   readonly scheduleLeadTime?: Duration;
   readonly dispatchDuration?: Duration;
   readonly offerTimeout?: Duration;
