@@ -1,7 +1,8 @@
 import 'server-only';
-import { createClient } from '@supabase/supabase-js';
+import type { ActorContext } from '@application/ports/actor-context';
+import type { CookieMethodsServer } from '@supabase/ssr';
 import type { Transaction, UnitOfWork } from '@application/ports/unit-of-work';
-import { Instant } from '@domain/shared/instant.value-object';
+import { ACTIVE_BOOKING_STATUSES } from '@domain/dispatch/booking-status';
 import { SystemClock } from '../clock/system-clock';
 import { HmacInviteTokenGenerator } from '../memory/hmac-invite-token-generator';
 import { InMemoryDriverNotifier } from '../memory/in-memory-driver-notifier';
@@ -9,6 +10,8 @@ import { InMemoryLogger } from '../memory/in-memory-logger';
 import { InMemoryUnitOfWork } from '../memory/in-memory-unit-of-work';
 import { RandomIdGenerator } from '../memory/random-id-generator';
 import { Sha256CommandHasher } from '../memory/sha256-command-hasher';
+import { InMemoryDemoRunProvisioner } from '../memory/in-memory-demo-run-provisioner';
+import { InMemoryDueBookings } from '../memory/in-memory-due-bookings';
 import { InMemoryBookingRepository } from '../memory/in-memory-booking-repository';
 import { InMemoryRideOfferRepository } from '../memory/in-memory-ride-offer-repository';
 import { InMemoryDriverQueueRepository } from '../memory/in-memory-driver-queue-repository';
@@ -22,9 +25,20 @@ import { InMemoryDriverDeviceRepository } from '../memory/in-memory-driver-devic
 import { InMemoryCommandLog } from '../memory/in-memory-command-log';
 import { InMemoryEventLog } from '../memory/in-memory-event-log';
 import type { MemoryStore } from '../memory/memory-store';
-
-import type { Database } from '../supabase/database.types';
-import type { RepositoryStorage } from '../supabase/repository-storage';
+import { PostgresRepositoryStorage } from '../supabase/postgres-repository-storage';
+import { PostgresDemoRunProvisioner } from '../supabase/postgres-demo-run-provisioner';
+import { PostgresDueBookings } from '../supabase/postgres-due-bookings';
+import { PostgresSessionMembershipReader } from '../supabase/postgres-session-membership-reader';
+import { PostgresCoordinatorDirectory } from '../supabase/postgres-coordinator-directory';
+import { PostgresRequestRateLimit } from '../supabase/postgres-request-rate-limit';
+import { PostgresRiderBookingReader } from '../supabase/postgres-rider-booking-reader';
+import { SupabaseAuthSession } from '../supabase/supabase-auth-session';
+import { sweepActorContext } from './security-wiring';
+import { getPersistenceDefaults } from './persistence-defaults';
+import { createAuthClient, createProvisioningClient, getDatabaseUrl } from './auth.configuration';
+import { readStorageConfiguration, type SupabaseConfiguration } from './storage.configuration';
+import { getPostgresConnection } from './postgres.configuration';
+import type { RepositoryBackend, RepositoryStorage } from '../supabase/repository-storage';
 import { SupabaseBookingRepository } from '../supabase/supabase-booking-repository';
 import { SupabaseCommandLog } from '../supabase/supabase-command-log';
 import { SupabaseDriverDeviceRepository } from '../supabase/supabase-driver-device-repository';
@@ -36,22 +50,30 @@ import { SupabaseFareQuoteRepository } from '../supabase/supabase-fare-quote-rep
 import { SupabaseRideOfferRepository } from '../supabase/supabase-ride-offer-repository';
 import { SupabaseStandRepository } from '../supabase/supabase-stand-repository';
 import { SupabaseStorage } from '../supabase/supabase-storage';
-import type { CommandScope } from '../supabase/unit-of-work.mapper';
 import { SupabaseTownRepository } from '../supabase/supabase-town-repository';
 import { SupabaseTripRepository } from '../supabase/supabase-trip-repository';
 import { SupabaseUnitOfWork } from '../supabase/supabase-unit-of-work';
-import { domainValues } from './domain-values';
+import { domainValues, toInstant } from './domain-values';
 import { decodeInviteTokenSecret } from './invite-token.configuration';
 import { createContainer, type ContainerPorts } from './use-case-wiring';
 
-export { createContainer } from './use-case-wiring';
-
+export { getRequestIp, logSweepCounts, verifySweepAuthorization } from './security-wiring';
+export { sweepActorContext };
+export {
+  buildCoordinatorSignIn,
+  buildCompleteCoordinatorSignIn,
+  buildStartAnonymousSession,
+} from './use-case-wiring';
 const IN_MEMORY_INVITE_TOKEN_SECRET = Buffer.from('thamba-in-memory-invite-token-test-secret');
 
 export function createInMemoryContainer(overrides: Partial<ContainerPorts> = {}) {
-  const unitOfWork = overrides.unitOfWork ?? new InMemoryUnitOfWork(createMemoryTransaction);
-  const tokens = overrides.tokens ?? new HmacInviteTokenGenerator(IN_MEMORY_INVITE_TOKEN_SECRET);
-  return createApplicationContainer(unitOfWork, { ...overrides, tokens });
+  const memory = new InMemoryUnitOfWork(createMemoryTransaction);
+  return createApplicationContainer(overrides.unitOfWork ?? memory, {
+    demoRuns: new InMemoryDemoRunProvisioner(overrides.unitOfWork ?? memory),
+    dueBookings: new InMemoryDueBookings(() => memory.listBookings(), domainValues.bookingDueAt),
+    ...overrides,
+    tokens: overrides.tokens ?? new HmacInviteTokenGenerator(IN_MEMORY_INVITE_TOKEN_SECRET),
+  });
 }
 
 function createApplicationContainer(
@@ -60,26 +82,21 @@ function createApplicationContainer(
 ) {
   const notifier = overrides.notifier ?? new InMemoryDriverNotifier();
   const useCases = createContainer({
+    ...getPersistenceDefaults(unitOfWork),
+    ...overrides,
     unitOfWork,
     notifier,
     clock: overrides.clock ?? new SystemClock(toInstant),
     hasher: overrides.hasher ?? new Sha256CommandHasher(),
     ids: overrides.ids ?? new RandomIdGenerator(),
     logger: overrides.logger ?? new InMemoryLogger(),
-    tokens: overrides.tokens,
   });
   return { ...useCases, unitOfWork, notifier };
 }
 
-function toInstant(milliseconds: number): Instant {
-  const instant = Instant.fromEpochMilliseconds(milliseconds);
-  if (!instant.ok) throw new RangeError('The system clock returned an invalid instant');
-  return instant.value;
-}
-
 export function createMemoryTransaction({ tables }: MemoryStore): Transaction {
   return {
-    bookings: new InMemoryBookingRepository(tables.bookings),
+    bookings: new InMemoryBookingRepository(tables.bookings, ACTIVE_BOOKING_STATUSES),
     offers: new InMemoryRideOfferRepository(tables.offers),
     drivers: new InMemoryDriverQueueRepository(tables.drivers),
     stands: new InMemoryStandRepository(tables.stands),
@@ -94,28 +111,6 @@ export function createMemoryTransaction({ tables }: MemoryStore): Transaction {
   };
 }
 
-type SupabaseConfiguration = {
-  readonly backend: 'supabase';
-  readonly url: string;
-  readonly serviceRoleKey: string;
-  readonly commandScope?: CommandScope;
-};
-
-type StorageConfiguration =
-  | { readonly backend: 'memory' }
-  | (SupabaseConfiguration & { readonly inviteTokenSecret: string | undefined });
-
-function readStorageConfiguration(): StorageConfiguration {
-  if (process.env.NODE_ENV === 'test') return { backend: 'memory' };
-  const {
-    SUPABASE_URL: url,
-    SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
-    INVITE_TOKEN_SECRET: inviteTokenSecret,
-  } = process.env;
-  if (!url || !serviceRoleKey) throw new Error('Missing server Supabase configuration');
-  return { backend: 'supabase', url, serviceRoleKey, inviteTokenSecret };
-}
-
 export function createConfiguredContainer(
   configuration = readStorageConfiguration(),
   overrides: Partial<ContainerPorts> = {},
@@ -124,26 +119,72 @@ export function createConfiguredContainer(
   const tokens = new HmacInviteTokenGenerator(
     decodeInviteTokenSecret(configuration.inviteTokenSecret),
   );
-  return createApplicationContainer(createSupabasePersistence(configuration).unitOfWork, {
+  if (configuration.backend === 'supabase') {
+    return createApplicationContainer(createSupabasePersistence(configuration).unitOfWork, {
+      ...overrides,
+      tokens,
+    });
+  }
+  const { actorContext } = overrides;
+  if (!configuration.writerUrl || !actorContext)
+    throw new Error('Missing scoped Postgres configuration');
+  const writer = getPostgresConnection(configuration.writerUrl);
+  const storage = new PostgresRepositoryStorage(writer, actorContext);
+  const dueBookings = configuration.sweepUrl
+    ? new PostgresDueBookings(getPostgresConnection(configuration.sweepUrl))
+    : undefined;
+  return createApplicationContainer(createPersistence(storage).unitOfWork, {
+    demoRuns: new PostgresDemoRunProvisioner(writer),
+    ...(dueBookings ? { dueBookings } : {}),
     ...overrides,
     tokens,
   });
 }
 
-export function createSupabasePersistence(configuration: SupabaseConfiguration) {
-  const client = createClient<Database>(configuration.url, configuration.serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+export function createDispatchSweepContainer() {
+  return createConfiguredContainer(readStorageConfiguration('sweep'), {
+    actorContext: sweepActorContext,
   });
-  const storage = new SupabaseStorage(client, configuration.commandScope);
+}
+export function createSupabasePersistence(configuration: SupabaseConfiguration) {
+  const client = createProvisioningClient(configuration);
+  return createPersistence(new SupabaseStorage(client, configuration.commandScope));
+}
+
+function createPersistence(storage: RepositoryBackend) {
   return {
     transaction: createSupabaseTransaction(storage),
     unitOfWork: new SupabaseUnitOfWork(storage, createSupabaseTransaction),
   };
 }
 
+export function createAuthSession(cookies: CookieMethodsServer) {
+  const reader = getPostgresConnection(getDatabaseUrl('reader'));
+  return new SupabaseAuthSession(
+    createAuthClient(cookies),
+    new PostgresSessionMembershipReader(reader),
+  );
+}
+
+export function createRiderBookingReader(session: ActorContext) {
+  return new PostgresRiderBookingReader(
+    getPostgresConnection(getDatabaseUrl('reader')),
+    session,
+    domainValues,
+  );
+}
+
+export function createCoordinatorDirectory() {
+  return new PostgresCoordinatorDirectory(getPostgresConnection(getDatabaseUrl('reader')));
+}
+
+export function createRequestRateLimit() {
+  return new PostgresRequestRateLimit(getPostgresConnection(getDatabaseUrl('writer')));
+}
+
 function createSupabaseTransaction(storage: RepositoryStorage): Transaction {
   return {
-    bookings: new SupabaseBookingRepository(storage, domainValues),
+    bookings: new SupabaseBookingRepository(storage, domainValues, ACTIVE_BOOKING_STATUSES),
     offers: new SupabaseRideOfferRepository(storage, domainValues),
     drivers: new SupabaseDriverQueueRepository(storage),
     stands: new SupabaseStandRepository(storage),

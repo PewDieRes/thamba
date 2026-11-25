@@ -1,3 +1,5 @@
+import type { RepositoryAccess } from '@application/ports/repository-access';
+import type { CommandScope } from './command-scope';
 import type { WriteResult } from '@application/ports/application-result';
 import type { ExpectedVersion } from '@application/ports/versioned';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -71,4 +73,19 @@ export async function getRow<Name extends Resource>(
 ): Promise<Row<Name> | undefined> {
   const [row] = await storage.list(resource, filter);
   return row;
+}
+
+export interface SnapshotReader {
+  <Name extends Resource>(resource: Name, filter: Filter, revision?: string): Promise<Row<Name>[]>;
+}
+
+export interface RepositoryBackend extends RepositoryStorage {
+  openReader?(access: RepositoryAccess | undefined): Promise<SnapshotReader>;
+  getRevision(): Promise<string>;
+  list<Name extends Resource>(
+    resource: Name,
+    filter: Filter,
+    revision?: string,
+  ): Promise<Row<Name>[]>;
+  commit(writes: readonly RowWrite[], revision?: string, scope?: CommandScope): Promise<void>;
 }

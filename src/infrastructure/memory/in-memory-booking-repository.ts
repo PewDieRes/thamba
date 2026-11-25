@@ -1,12 +1,26 @@
 import type { Booking } from '@domain/dispatch/booking';
-import type { BookingId } from '@domain/shared/ids.value-object';
+import type { BookingId, RiderId } from '@domain/shared/ids.value-object';
 import type { BookingRepository } from '@application/ports/booking-repository';
 import type { WriteResult } from '@application/ports/application-result';
 import type { ExpectedVersion } from '@application/ports/versioned';
 import { MemoryTable } from './memory-table';
 
 export class InMemoryBookingRepository implements BookingRepository {
-  constructor(private readonly table = new MemoryTable<Booking>()) {}
+  constructor(
+    private readonly table = new MemoryTable<Booking>(),
+    private readonly activeStatuses: readonly string[] = [],
+  ) {}
+
+  countActiveByRider(riderId: RiderId) {
+    return Promise.resolve(
+      this.table
+        .list()
+        .filter(
+          ({ value: { state } }) =>
+            state.riderId === riderId && this.activeStatuses.includes(state.status),
+        ).length,
+    );
+  }
 
   get(id: BookingId) {
     return Promise.resolve(this.table.get(id));

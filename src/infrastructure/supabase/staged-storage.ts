@@ -5,12 +5,14 @@ import {
   StorageFailure,
   type Filter,
   type Resource,
+  type SnapshotReader,
   type Row,
   type RepositoryStorage,
   type RowWrite,
 } from './repository-storage';
-import { readCommandScope, type CommandScope } from './unit-of-work.mapper';
-import type { SupabaseStorage } from './supabase-storage';
+import type { CommandScope } from './command-scope';
+import { readCommandScope, readStandIds } from './unit-of-work.mapper';
+import type { RepositoryBackend } from './repository-storage';
 
 function matches(row: object, filter: Filter): boolean {
   const fields = row as Record<string, unknown>;
@@ -27,12 +29,13 @@ export class StagedStorage implements RepositoryStorage {
   #isOpen = true;
 
   constructor(
-    private readonly backend: SupabaseStorage,
+    private readonly backend: RepositoryBackend,
     private readonly revision: string,
+    private readonly readSnapshot: SnapshotReader,
   ) {}
 
   async list<Name extends Resource>(resource: Name, filter: Filter): Promise<Row<Name>[]> {
-    const rows = await this.backend.list(resource, filter, this.revision);
+    const rows = await this.readSnapshot(resource, filter, this.revision);
     for (const write of this.#writes) {
       if (write.resource !== resource) continue;
       const index = rows.findIndex((row) => matches(row, write.key));
@@ -72,7 +75,11 @@ export class StagedStorage implements RepositoryStorage {
 
   private observeScope(row: object): void {
     const scope = readCommandScope(row);
-    if (scope) this.#observedScopes.set(JSON.stringify(scope), scope);
+    if (!scope) return;
+    const key = JSON.stringify(scope);
+    const existing = this.#observedScopes.get(key)?.stand_ids ?? [];
+    const standIds = [...new Set([...existing, ...readStandIds(row)])];
+    this.#observedScopes.set(key, { ...scope, stand_ids: standIds });
   }
 
   async commit(): Promise<void> {
@@ -89,7 +96,11 @@ export class StagedStorage implements RepositoryStorage {
       if (scope) commandScopes.set(JSON.stringify(scope), scope);
     }
     const available = commandScopes.size > 0 ? commandScopes : this.#observedScopes;
-    const scope = available.size === 1 ? available.values().next().value : undefined;
+    const [key] = available.keys();
+    const scope =
+      available.size === 1 && key
+        ? (this.#observedScopes.get(key) ?? available.get(key))
+        : undefined;
     await this.backend.commit(this.#writes, this.revision, scope);
   }
 

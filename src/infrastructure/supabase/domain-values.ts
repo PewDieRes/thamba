@@ -1,3 +1,4 @@
+import type { getBookingDueAt } from '@domain/dispatch/booking-state';
 import type { Booking } from '@domain/dispatch/booking';
 import type { RideOffer } from '@domain/dispatch/ride-offer';
 import type { Duration } from '@domain/shared/duration.value-object';
@@ -8,6 +9,7 @@ import type { createLicence } from '@domain/town/licence';
 import type { Town } from '@domain/town/town';
 
 export interface DomainValues {
+  readonly bookingDueAt: typeof getBookingDueAt;
   readonly booking: typeof Booking.restore;
   readonly offer: typeof RideOffer.issue;
   readonly town: typeof Town.restore;
