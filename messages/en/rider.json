@@ -51,5 +51,27 @@
   "vehicle": "Vehicle number",
   "call": "Call driver",
   "whatsapp": "WhatsApp",
-  "demoRunUnavailable": "This Demo Run has ended. Start a new booking."
+  "demoRunUnavailable": "This Demo Run has ended. Start a new booking.",
+  "demoFlow": {
+    "tryDemo": "Try the demo",
+    "scenario": "Scenario",
+    "successfulTrip": "Complete a Trip",
+    "queueExhaustion": "No Driver available",
+    "start": "Start demo",
+    "starting": "Starting…",
+    "startError": "Could not start the demo.",
+    "share": "Share Town link",
+    "link": "Town link",
+    "copied": "Link copied.",
+    "complaint": "Simulated complaint",
+    "instructions": "Choose a sample issue. Your complaint is saved in this Demo Run.",
+    "topic": "Complaint topic",
+    "fare": "Fare",
+    "wait": "Waiting time",
+    "trip": "Trip",
+    "send": "Submit complaint",
+    "submitting": "Submitting…",
+    "saved": "Demo complaint recorded.",
+    "complaintError": "Could not record the demo complaint."
+  }
 }

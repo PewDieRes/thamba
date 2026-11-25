@@ -1,3 +1,4 @@
+import type { AvailabilityReason } from '../ports/event-log';
 import type { Booking } from '@domain/dispatch/booking';
 import type { DeclinePenaltyPolicy } from '@domain/dispatch/decline-penalty.policy';
 import { leaveDriverQueue, releaseDriverQueueEntry } from '@domain/dispatch/driver-queue-entry';
@@ -26,7 +27,7 @@ interface OfferResolution {
   readonly ids: IdGenerator;
   readonly declinePenalty: DeclinePenaltyPolicy;
   readonly takeOffline?: boolean;
-  readonly availabilityReason?: 'skip' | 'walk_up' | undefined;
+  readonly availabilityReason?: AvailabilityReason | undefined;
 }
 
 export async function saveOfferResolution(

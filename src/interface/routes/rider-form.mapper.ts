@@ -19,16 +19,22 @@ export type RideFormValues = {
   date: string;
 };
 
-export function mapRiderForm(town: TownOverviewView, locale: Locale, from?: string) {
+export function mapRiderForm(
+  town: TownOverviewView,
+  locale: Locale,
+  options: { from?: string | undefined; standId?: string | undefined } = {},
+) {
   return {
     locale,
     townId: town.townId,
     notices: mapTownNotices(town, locale),
     isDemo: town.capability.kind === 'simulated',
-    stands: town.stands.map(({ id, pickupLandmarkIds }) => ({ id, pickupLandmarkIds })),
+    stands: town.stands
+      .filter(({ id }) => !options.standId || id === options.standId)
+      .map(({ id, pickupLandmarkIds }) => ({ id, pickupLandmarkIds })),
     passengerOptions: PASSENGER_OPTIONS,
     landmarks: town.landmarks.map((point) => mapLandmark(point, locale)),
-    preselection: town.landmarks.find((point) => point.slug === from)?.id ?? '',
+    preselection: town.landmarks.find((point) => point.slug === options.from)?.id ?? '',
   };
 }
 

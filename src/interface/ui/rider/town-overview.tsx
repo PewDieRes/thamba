@@ -1,5 +1,6 @@
 import { BookingNotices, type NoticeDetails } from './booking-notices';
 import { CoordinatorContact, type CoordinatorContactDetails } from './coordinator-contact';
+import type { ReactNode } from 'react';
 import type { RiderCopy } from './rider-copy';
 
 interface FareRow {
@@ -22,6 +23,7 @@ interface TownOverviewProps {
   stands: readonly StandRow[];
   notices: NoticeDetails;
   copy: RiderCopy;
+  children?: ReactNode;
 }
 
 export function TownOverview({
@@ -32,6 +34,7 @@ export function TownOverview({
   stands,
   notices,
   copy,
+  children,
 }: TownOverviewProps) {
   return (
     <>
@@ -46,6 +49,7 @@ export function TownOverview({
           {copy.book}
         </a>
       )}
+      {children}
       {stands.length > 0 && <StandList stands={stands} copy={copy} />}
       {fares.length > 0 && <FareTable fares={fares} copy={copy} />}
       <BookingNotices {...notices} copy={copy} />

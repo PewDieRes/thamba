@@ -29,7 +29,7 @@ export class InMemoryDemoRunProvisioner implements DemoRunProvisioner {
       const savedStand = await tx.stands.save(stand, null);
       if (!savedStand.ok) return savedStand;
       for (const driver of drivers) {
-        const savedDriver = await tx.drivers.save(driver, null);
+        const savedDriver = await tx.drivers.save({ ...driver, isSynthetic: true }, null);
         if (!savedDriver.ok) return savedDriver;
       }
       return savedStand;

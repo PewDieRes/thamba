@@ -1,6 +1,6 @@
 import type { Booking } from '@domain/dispatch/booking';
 import { getDispatchBlock } from '@domain/dispatch/booking-request';
-import { isRideOfferExpired } from '@domain/dispatch/ride-offer';
+import { isRideOfferExpired, type RideOffer } from '@domain/dispatch/ride-offer';
 import type { DriverSession } from '@domain/identity/driver-device';
 import {
   createSessionSubject,
@@ -44,7 +44,7 @@ export async function advanceDemoDriver(
 
   return state.trip
     ? advanceDemoTrip(tx, current, { ...context, driver, queue, trip: state.trip })
-    : acceptDemoOffer(tx, current, { ...context, driver, queue });
+    : respondToDemoOffer(tx, current, { ...context, driver, queue });
 }
 
 type ScriptedDriver = ScopedQueueEntry & Required<Pick<ScopedQueueEntry, 'simulationSteps'>>;
@@ -70,7 +70,7 @@ function createSimulationSession(driverId: DriverId, now: Instant): DriverSessio
   };
 }
 
-async function acceptDemoOffer(
+async function respondToDemoOffer(
   tx: Transaction,
   current: Versioned<Booking>,
   context: SimulationContext & { driver: DriverSession; queue: ScriptedDriver },
@@ -78,16 +78,22 @@ async function acceptDemoOffer(
   const { state } = current.value;
   const offer = await getPendingOffer(tx.offers, state.offer?.offerId);
   if (!offer) return undefined;
-  const { now, town, queue, driver, ids } = context;
+  const { now, town, queue, driver } = context;
   const canBook = canBookTown(town, state, now);
   if (getDispatchBlock(state, { canBook }, now) || isRideOfferExpired(offer, now)) return undefined;
-  if (!isDue(offer.issuedAt, queue.simulationSteps.accept, now)) return undefined;
-  if (await tx.trips.findActiveByDriver(driver.device.driverId)) return undefined;
-
-  const decision = current.value.acceptOffer(
-    { driver, offerId: offer.offerId, entry: queue.entry, canBook, tripId: ids.next<'Trip'>() },
-    now,
-  );
+  const { decline, accept } = queue.simulationSteps;
+  const decision = isDue(offer.issuedAt, decline, now)
+    ? current.value.closeOffer(
+        {
+          action: 'decline',
+          canBook,
+          offerId: offer.offerId,
+          actor: { type: 'driver', driverId: driver.device.driverId },
+        },
+        now,
+      )
+    : await acceptDemoOffer(tx, current.value, { ...context, offer, accept, canBook });
+  if (!decision) return undefined;
   if (!decision.ok) return decision;
   const saved = await saveOfferResolution(tx, {
     ...context,
@@ -95,6 +101,24 @@ async function acceptDemoOffer(
     decision: decision.value,
   });
   return saved.ok ? commit(mapBookingProgress(decision.value.booking)) : saved;
+}
+
+type DemoAcceptance = SimulationContext & {
+  driver: DriverSession;
+  queue: ScriptedDriver;
+  offer: RideOffer;
+  accept: number | undefined;
+  canBook: boolean;
+};
+
+async function acceptDemoOffer(tx: Transaction, booking: Booking, options: DemoAcceptance) {
+  const { offer, driver, queue, accept, now, ids, canBook } = options;
+  if (!isDue(offer.issuedAt, accept, now)) return undefined;
+  if (await tx.trips.findActiveByDriver(driver.device.driverId)) return undefined;
+  return booking.acceptOffer(
+    { driver, offerId: offer.offerId, entry: queue.entry, canBook, tripId: ids.next<'Trip'>() },
+    now,
+  );
 }
 
 async function getPendingOffer(offers: Transaction['offers'], offerId: RideOfferId | undefined) {

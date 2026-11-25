@@ -53,7 +53,7 @@ export function demoRunProvisionerContract(prepare: () => Promise<Persistence>) 
       expect(saved).toEqual({
         runs: [{ demoRunId: run.demoRunId, riderId: run.riderId }],
         stand,
-        drivers,
+        drivers: drivers.map((driver) => ({ ...driver, isSynthetic: true })),
       });
     });
 

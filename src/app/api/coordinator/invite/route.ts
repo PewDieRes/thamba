@@ -12,8 +12,8 @@ import { getAppOrigin } from '@interface/auth/request-origin';
 import { z } from 'zod';
 
 const schema = z.strictObject({
-  standId: z.uuid().toLowerCase(),
-  driverId: z.uuid(),
+  standId: z.guid().toLowerCase(),
+  driverId: z.guid(),
   commandKey,
   locale: z.enum(['en', 'hi', 'mr']),
 });

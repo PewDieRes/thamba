@@ -1,3 +1,5 @@
+import { coordinatorOperationsContract } from './coordinator-operations.contract';
+import { prepareMemoryOperations } from './coordinator-operations-memory.fixtures';
 import { matchedRiderContactReaderContract } from './matched-rider-contact-reader.contract';
 import { createMemoryContactReader } from './matched-rider-contact.fixtures';
 import { demoRunProvisionerContract } from './demo-run-provisioner.contract';
@@ -24,6 +26,7 @@ import { eventLogContract } from './event-log.contract';
 import { unitOfWorkContract } from './unit-of-work.contract';
 
 describe('in-memory adapters', () => {
+  coordinatorOperationsContract(prepareMemoryOperations);
   matchedRiderContactReaderContract(createMemoryContactReader);
   bookingRepositoryContract(() => createMemoryTransaction(new MemoryStore()).bookings);
   rideOfferRepositoryContract(() => createMemoryTransaction(new MemoryStore()).offers);

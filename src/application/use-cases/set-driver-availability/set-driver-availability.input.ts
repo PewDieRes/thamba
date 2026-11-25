@@ -22,7 +22,12 @@ export function createSetDriverAvailabilitySchema(schema: InputSchemaFactory) {
     ),
     driverId: schema.validated(createDriverId),
     isOnline: schema.boolean(),
-    reason: schema.optional(schema.union(schema.literal('skip'), schema.literal('walk_up'))),
+    reason: schema.optional(
+      schema.union(
+        schema.union(schema.literal('skip'), schema.literal('walk_up')),
+        schema.union(schema.literal('break'), schema.literal('offline')),
+      ),
+    ),
     commandKey: commandKey(schema),
   });
 }
