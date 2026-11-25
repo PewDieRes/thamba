@@ -1,1 +1,11 @@
-{}
+{
+  "login": {
+    "title": "Coordinator sign-in",
+    "email": "Email address",
+    "submit": "Send link",
+    "invalid": "Enter a valid email address.",
+    "sent": "If this address is registered, check your inbox for the sign-in link.",
+    "try_later": "Try again in a minute.",
+    "signedIn": "Signed in as a Coordinator"
+  }
+}

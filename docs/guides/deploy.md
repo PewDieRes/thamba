@@ -4,9 +4,9 @@
 2. Select Node.js 24.x. Set the Preview environment variable `ENABLE_EXPERIMENTAL_COREPACK` to `1` so Vercel uses the pnpm version pinned in `package.json`. Set the Install Command to `pnpm install --frozen-lockfile` and the Build Command to `pnpm build`. The repository sets the function region to Mumbai (`bom1`).
 3. Open a pull request to generate a Preview deployment. Open its URL and confirm that `/` redirects to `/mr` and renders **थांबा**. Check `/en` and `/hi` for the corresponding document languages.
 
-The application builds without credentials. For Supabase-backed previews, use an isolated Mumbai (`ap-south-1`) project with synthetic data. Add the preview project's `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` under **Settings → Environment Variables → Preview**. Store database URLs, dispatch tokens and private push credentials in Preview-scoped server environment variables. Keep credentials in the hosting dashboard and use a separate Supabase project for production.
+The application builds without credentials. For Supabase-backed previews, use an isolated Mumbai (`ap-south-1`) project with synthetic data. Add `SUPABASE_URL`, `SUPABASE_ANON_KEY` and the deployment’s HTTPS `APP_ORIGIN` under **Settings → Environment Variables → Preview**. Use the matching project's API URL and anon key. Store database URLs, dispatch tokens and private push credentials in Preview-scoped server environment variables. Keep credentials in the hosting dashboard and use a separate Supabase project for production.
 
-Set the server-only `INVITE_TOKEN_SECRET` to at least 32 random bytes encoded in base64. Generate a value with `openssl rand -base64 32`. Use the same value across server instances and redeployments that share the same Supabase database so retries reproduce the original Driver invite token. Use separate secrets for isolated environments. Changing the secret changes the token returned for previously issued commands, so those replayed tokens will fail redemption.
+Set the server-only `INVITE_TOKEN_SECRET` to at least 32 random bytes encoded in base64. Generate a value with `openssl rand -base64 32`. Use separate secrets for isolated environments. Issue a new invite if the original response was lost. The stored digest verifies links that were already issued across secret rotations.
 
 [Vercel build configuration](https://vercel.com/docs/builds/configure-a-build#corepack) · [Vercel deployment environments](https://vercel.com/docs/deployments/environments) · [Vercel regions](https://vercel.com/docs/regions) · [Thamba architecture](../02-plan/architecture.md)
 
@@ -42,10 +42,17 @@ indexes contacts due for removal.
 
 [Supabase connection modes](https://supabase.com/docs/guides/database/connecting-to-postgres) · [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security) · [Realtime Postgres Changes](https://supabase.com/docs/guides/realtime/postgres-changes)
 
+## Auth and Booking entry points
+
+- Enable anonymous sign-ins in the matching Supabase project. The Rider can start a Demo Run with `POST /api/rider/demo-run` using a catalogue Stand. Use the returned run and Stand IDs for `POST /api/rider/quote` and `POST /api/rider/bookings`. The provisioned run copies Stand pickup cues. Synthetic Drivers and their scripted steps are provisioned by the scenario workflow.
+- Pre-provision a confirmed email identity and an active `coordinators` row for the correct Town, run and Stand. Keep the email provider enabled for magic links. Public Auth accounts receive Coordinator privileges only through an operator-provisioned membership. In Supabase Auth, allow-list the HTTPS `/auth/callback?locale=mr`, `/auth/callback?locale=hi` and `/auth/callback?locale=en` URLs for each deployment origin. The sign-in route requests a PKCE link and the callback only redirects to the localized Coordinator area or sign-in page. Sign in with the same browser that requested the email.
+- Issue a Driver invite with a synthetic roster entry and share the returned HTTPS link. The token appears in its fragment and is removed when the confirmation page opens. The confirmation POST redeems the invite after an anonymous session has been established. The Coordinator can revoke the device through `POST /api/coordinator/revoke-device`.
+- Booking confirmation allows 10 requests per IP per Postgres minute window and up to two active Bookings across Towns and runs per Rider session. The first limit uses the Vercel-forwarded IP and an atomic Postgres counter shared by every function instance. The second uses the Booking transaction so concurrent confirmations cannot exceed the cap.
+
 ## Dispatch sweep
 
 1. Deploy the protected `POST /api/internal/dispatch/sweep` route and set its server-only
-   `DISPATCH_SWEEP_TOKEN`. The route verifies the `Authorization: Bearer` header.
+   `DISPATCH_SWEEP_SECRET`. The route verifies the `Authorization: Bearer` header.
 2. Check the request queue permissions before provisioning the token. Hosted projects can retain
    extension-owned grants on `net.http_request_queue`. The job stays idle while a Thamba database
    role can read its queued headers. Run this as the migration owner and confirm it returns
@@ -71,7 +78,6 @@ indexes contacts due for removal.
    consecutive intervals pass without a successful sweep. Use the route's telemetry for
    sustained monitoring, since `pg_net` responses expire.
 
-For token rotation, let the route accept both tokens briefly, update the existing Vault entry,
-verify a successful sweep with the new token, and retire the old token.
+For token rotation, update the Vault entry and the deployment secret together, then verify a successful sweep. The next scheduled sweep recovers Bookings that became due during the rotation.
 
 [Supabase Cron](https://supabase.com/docs/guides/cron) · [pg_net](https://supabase.com/docs/guides/database/extensions/pg_net) · [Vault](https://supabase.com/docs/guides/database/vault)
