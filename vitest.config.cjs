@@ -1,3 +1,4 @@
+const { dirname, join } = require('node:path');
 const { defineConfig } = require('vitest/config');
 
 const domainFiles = 'src/domain/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}';
@@ -5,7 +6,11 @@ const applicationFiles = 'src/application/**/*.{ts,mts,cts,tsx,js,mjs,cjs,jsx}';
 const testFile = '*.{test,spec}.{ts,mts,cts,tsx,js,mjs,cjs,jsx}';
 
 module.exports = defineConfig({
-  resolve: { tsconfigPaths: true },
+  resolve: {
+    tsconfigPaths: true,
+    // Vitest runs server composition in Node without Next's react-server export condition.
+    alias: { 'server-only': join(dirname(require.resolve('server-only')), 'empty.js') },
+  },
   test: {
     projects: [
       {

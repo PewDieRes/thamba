@@ -4,6 +4,9 @@ import { err, ok } from '@domain/shared/result';
 import { DEMO_STAND, DEMO_TOWN, STAND, TOWN } from '../unit/application/demo-data.fixtures';
 import { CONFLICT, SAVED, type AdapterFactory } from './versioned-repository.fixtures';
 
+const town = { ...DEMO_TOWN, slug: 'repository-contract-demo-town' };
+const stand = { ...DEMO_STAND, pickupCues: {} };
+
 export function unitOfWorkContract(make: AdapterFactory<UnitOfWork>) {
   describe('UnitOfWork', () => {
     registerCommitContract(make);
@@ -17,8 +20,8 @@ function registerCommitContract(make: AdapterFactory<UnitOfWork>) {
     const rejected = err({ code: 'booking_unavailable' as const });
     expect(
       await unit.run(async ({ towns, stands }) => {
-        expect(await towns.save(DEMO_TOWN, null)).toEqual(SAVED);
-        expect(await stands.save(DEMO_STAND, null)).toEqual(SAVED);
+        expect(await towns.save(town, null)).toEqual(SAVED);
+        expect(await stands.save(stand, null)).toEqual(SAVED);
         return rejected;
       }),
     ).toEqual(rejected);
@@ -29,14 +32,14 @@ function registerCommitContract(make: AdapterFactory<UnitOfWork>) {
     expect(await read()).toEqual(ok([undefined, undefined]));
     expect(
       await unit.run(async ({ towns, stands }) => {
-        expect(await towns.save(DEMO_TOWN, null)).toEqual(SAVED);
-        return stands.save(DEMO_STAND, null);
+        expect(await towns.save(town, null)).toEqual(SAVED);
+        return stands.save(stand, null);
       }),
     ).toEqual(SAVED);
     expect(await read()).toEqual(
       ok([
-        { value: DEMO_TOWN, version: 1 },
-        { value: DEMO_STAND, version: 1 },
+        { value: town, version: 1 },
+        { value: stand, version: 1 },
       ]),
     );
   });
@@ -48,14 +51,14 @@ function registerConflictContract(make: AdapterFactory<UnitOfWork>) {
     const ready = latch();
     const resume = latch();
     const slower = unit.run(async ({ towns, stands }) => {
-      const saved = await towns.save({ ...DEMO_TOWN, name: 'Other name' }, null);
+      const saved = await towns.save({ ...town, name: 'Other name' }, null);
       ready.resolve();
       if (!saved.ok) return saved;
       await resume.promise;
-      return stands.save(DEMO_STAND, null);
+      return stands.save(stand, null);
     });
     await ready.promise;
-    const faster = await unit.run(({ towns }) => towns.save(DEMO_TOWN, null));
+    const faster = await unit.run(({ towns }) => towns.save(town, null));
     resume.resolve();
     expect(faster).toEqual(SAVED);
     expect(await slower).toEqual(CONFLICT);
@@ -63,7 +66,7 @@ function registerConflictContract(make: AdapterFactory<UnitOfWork>) {
       await unit.run(async ({ towns, stands }) =>
         ok([await towns.get(TOWN), await stands.get(STAND)]),
       ),
-    ).toEqual(ok([{ value: DEMO_TOWN, version: 1 }, undefined]));
+    ).toEqual(ok([{ value: town, version: 1 }, undefined]));
   });
 }
 

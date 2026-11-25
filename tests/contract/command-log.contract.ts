@@ -11,7 +11,7 @@ import {
 const record: CommandRecord = {
   actor: 'rider:one',
   key: 'request',
-  inputHash: 'hash',
+  inputHash: 'a'.repeat(64),
   result: { ok: true, value: { bookingId: 'booking' } },
 };
 
@@ -25,10 +25,10 @@ export function commandLogContract(make: AdapterFactory<CommandLog>) {
   });
   test('CommandLog scopes a key to one actor and retains its input hash and result', async () => {
     const log = await make();
-    const other = { ...record, actor: 'rider:two', inputHash: 'other' };
+    const other = { ...record, actor: 'rider:two', inputHash: 'b'.repeat(64) };
     expect(await log.save(record, null)).toEqual(SAVED);
     expect(await log.save(other, null)).toEqual(SAVED);
-    expect(await log.save({ ...record, inputHash: 'mismatch' }, null)).toEqual(CONFLICT);
+    expect(await log.save({ ...record, inputHash: 'c'.repeat(64) }, null)).toEqual(CONFLICT);
     expect(await log.get(record)).toEqual({ value: record, version: 1 });
     expect(await log.get(other)).toEqual({ value: other, version: 1 });
   });
