@@ -79,3 +79,19 @@ insert into public.fare_routes (town_id, chart_version, route_id, day_fare_in_pa
 values
   ('00000000-0000-0000-0000-000000000001', 1, '00000000-0000-0000-0000-000000000031', 6000, 7500),
   ('00000000-0000-0000-0000-000000000001', 1, '00000000-0000-0000-0000-000000000032', 6000, 7500);
+
+insert into public.stands (id, town_id, name, name_translations, coordinator_contact, coordinator_contact_translations)
+values ('00000000-0000-0000-0000-000000001012', '00000000-0000-0000-0000-000000000002',
+  'Market Stand (illustrative)', '{"mr":"बाजार स्टँड (उदाहरण)","hi":"बाज़ार स्टैंड (उदाहरण)"}',
+  'Thamba project desk for information and feedback. Contact details pending.',
+  '{"mr":"माहिती आणि अभिप्रायासाठी थांबा प्रकल्प कक्ष. संपर्क तपशील अद्याप निश्चित झालेले नाहीत.","hi":"जानकारी और सुझावों के लिए थांबा परियोजना केंद्र। संपर्क विवरण अभी तय नहीं हैं।"}');
+
+insert into public.routes (id, town_id, pickup_landmark_id, destination_landmark_id)
+values ('00000000-0000-0000-0000-000000000033', '00000000-0000-0000-0000-000000000002',
+  '00000000-0000-0000-0000-000000000023', '00000000-0000-0000-0000-000000000024');
+
+insert into public.fare_charts (town_id, chart_version, is_illustrative, night_start_minute, night_end_minute)
+values ('00000000-0000-0000-0000-000000000002', 1, true, 1320, 360);
+
+insert into public.fare_routes (town_id, chart_version, route_id, day_fare_in_paise, night_fare_in_paise)
+values ('00000000-0000-0000-0000-000000000002', 1, '00000000-0000-0000-0000-000000000033', 5000, 6500);

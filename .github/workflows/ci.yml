@@ -31,20 +31,12 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm test:contract
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
-      - id: playwright
-        run: pnpm test:e2e
-      - uses: actions/upload-artifact@v6
-        if: ${{ failure() && steps.playwright.outcome == 'failure' }}
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
 
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      NEXT_TELEMETRY_DISABLED: '1'
       SUPABASE_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v6
@@ -68,3 +60,16 @@ jobs:
           export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
           export DB_URL
           pnpm test:integration
+      - name: Run Playwright end-to-end tests
+        id: playwright
+        run: |
+          pnpm local:env
+          pnpm build
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
+      - uses: actions/upload-artifact@v6
+        if: ${{ failure() && steps.playwright.outcome == 'failure' }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
