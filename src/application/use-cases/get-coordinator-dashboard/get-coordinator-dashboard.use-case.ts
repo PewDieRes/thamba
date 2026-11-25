@@ -7,6 +7,7 @@ import type {
   DashboardSnapshot,
 } from '@application/ports/coordinator-dashboard-reader';
 import { ACTIVE_BOOKING_STATUSES, type BookingStatus } from '@domain/dispatch/booking-status';
+import { canIssueInvite } from '@domain/identity/driver-invite-eligibility';
 import { err, ok } from '@domain/shared/result';
 import type { GetCoordinatorDashboardInput } from './get-coordinator-dashboard.input';
 import { rankQueue, replayQueue } from './queue-history';
@@ -56,6 +57,7 @@ export class GetCoordinatorDashboard {
 
 function mapDashboard({
   stand,
+  inviteScope,
   drivers,
   bookings,
   changes,
@@ -63,8 +65,10 @@ function mapDashboard({
   const positions = rankQueue(drivers);
   return {
     stand,
-    drivers: drivers.map((driver) => ({
+    drivers: drivers.map(({ inviteFacts, ...driver }) => ({
       ...driver,
+      hasDevice: inviteFacts.hasDevice,
+      canInvite: canIssueInvite({ ...inviteScope, ...inviteFacts }).ok,
       position: positions.get(driver.driverId) ?? null,
     })),
     history: replayQueue(drivers, changes),

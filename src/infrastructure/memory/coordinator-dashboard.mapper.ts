@@ -1,9 +1,12 @@
 import type {
-  CoordinatorDriver,
+  DashboardDriver,
   DashboardScope,
   DashboardSnapshot,
   QueueChange,
 } from '@application/ports/coordinator-dashboard-reader';
+import type { RecordedRideOffer } from '@application/ports/ride-offer-repository';
+import type { TownRecord } from '@application/ports/town-repository';
+import type { DriverInviteScope } from '@domain/identity/driver-invite-eligibility';
 import type { RecordedEvent } from '@application/ports/event-log';
 import type { ScopedQueueEntry } from '@application/ports/driver-queue-repository';
 import type { DriverDevice } from '@domain/identity/driver-device';
@@ -27,6 +30,8 @@ export function mapMemoryDashboard(
   if (!stand || !matches(stand)) return undefined;
   const trips = tables.trips.list().map(({ value }) => value);
   const devices = tables.devices.list().map(({ value }) => value);
+  const offers = tables.offers.list().map(({ value }) => value);
+  const town = tables.towns.get(membership.townId)?.value;
   const drivers = tables.drivers
     .list()
     .map(({ value }) => value)
@@ -34,8 +39,9 @@ export function mapMemoryDashboard(
   const bookings = tables.bookings.list().map(({ value }) => value.state);
   return {
     stand: { id: stand.standId, name: stand.name ?? stand.standId, names: stand.names ?? {} },
+    inviteScope: mapInviteScope(town, membership.demoRunId),
     drivers: drivers
-      .map((driver) => mapDriver(driver, { trips, devices, dayStart, dayEnd }))
+      .map((driver) => mapDriver(driver, { trips, devices, offers, dayStart, dayEnd }))
       .sort((a, b) => a.name.localeCompare(b.name) || a.driverId.localeCompare(b.driverId)),
     bookings: mapBookings(bookings, trips, matches),
     changes: tables.events
@@ -44,6 +50,17 @@ export function mapMemoryDashboard(
       .flatMap((item) =>
         item.event.type === 'DriverQueueChanged' && matches(item.event) ? mapChange(item) : [],
       ),
+  };
+}
+
+function mapInviteScope(
+  record: TownRecord | undefined,
+  demoRunId: BookingScope['demoRunId'],
+): DriverInviteScope {
+  return {
+    bookingMode: record?.town.bookingMode ?? null,
+    hasSimulationProfile: record?.town.simulationProfile !== undefined,
+    isInDemoRun: record?.demoRuns.some((run) => run.demoRunId === demoRunId) ?? false,
   };
 }
 
@@ -77,17 +94,18 @@ function mapBookings(
 interface DriverContext {
   trips: readonly Trip[];
   devices: readonly DriverDevice[];
+  offers: readonly RecordedRideOffer[];
   dayStart: number;
   dayEnd: number;
 }
 
 function mapDriver(
-  { entry, demoDriver, demoRunId }: ScopedQueueEntry,
+  { entry, demoDriver, demoRunId, isSynthetic }: ScopedQueueEntry,
   context: DriverContext,
-): CoordinatorDriver {
-  const { trips, devices, dayStart, dayEnd } = context;
+): DashboardDriver {
+  const { trips, devices, offers, dayStart, dayEnd } = context;
   const ownTrips = trips.filter((trip) => trip.driverId === entry.driverId);
-  const availability = getAvailability(entry, ownTrips);
+  const hasActiveTrip = ownTrips.some((trip) => !('endedAt' in trip));
   const hasDevice = devices.some(
     (device) => device.driverId === entry.driverId && device.status === 'active',
   );
@@ -97,16 +115,22 @@ function mapDriver(
     names: demoDriver?.names ?? {},
     vehicleNumber: demoDriver?.vehicleNumber ?? null,
     queuedAt: entry.availability === 'online' ? entry.queuedAt.toString() : null,
-    hasDevice,
     tripsToday: ownTrips.filter((trip) => wasCompletedToday(trip, { dayStart, dayEnd })).length,
-    availability,
-    canInvite:
-      demoRunId !== undefined && !hasDevice && ['online', 'offline'].includes(availability),
+    availability: getAvailability(entry, hasActiveTrip),
+    inviteFacts: {
+      isSynthetic: isSynthetic ?? demoRunId !== undefined,
+      hasSlot: true,
+      hasDevice,
+      hasPendingOffer: offers.some(
+        ({ offer, status }) => offer.driverId === entry.driverId && status === 'pending',
+      ),
+      hasActiveTrip,
+    },
   };
 }
 
-function getAvailability(entry: ScopedQueueEntry['entry'], trips: readonly Trip[]) {
-  if (trips.some((trip) => !('endedAt' in trip))) return 'on_trip';
+function getAvailability(entry: ScopedQueueEntry['entry'], hasActiveTrip: boolean) {
+  if (hasActiveTrip) return 'on_trip';
   if (entry.availability === 'online' && entry.reservation) return 'reserved';
   return entry.availability;
 }

@@ -1,3 +1,7 @@
+import type {
+  DriverInviteFacts,
+  DriverInviteScope,
+} from '@domain/identity/driver-invite-eligibility';
 import type { SessionSubject } from '@domain/shared/ids.value-object';
 import type {
   CoordinatorDashboardView,
@@ -15,9 +19,14 @@ export interface DashboardScope {
   readonly dayEnd: number;
 }
 
+export interface DashboardDriver extends Omit<CoordinatorDriver, 'canInvite' | 'hasDevice'> {
+  readonly inviteFacts: DriverInviteFacts;
+}
+
 export interface DashboardSnapshot {
   readonly stand: CoordinatorDashboardView['stand'];
-  readonly drivers: readonly CoordinatorDriver[];
+  readonly inviteScope: DriverInviteScope;
+  readonly drivers: readonly DashboardDriver[];
   readonly bookings: readonly CoordinatorBooking[];
   readonly changes: readonly QueueChange[];
 }
@@ -26,4 +35,4 @@ export interface CoordinatorDashboardReader {
   read(scope: DashboardScope): Promise<ApplicationResult<DashboardSnapshot>>;
 }
 
-export type { CoordinatorDriver, QueueChange } from '../contracts/coordinator-dashboard-view';
+export type { QueueChange } from '../contracts/coordinator-dashboard-view';

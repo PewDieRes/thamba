@@ -8,22 +8,50 @@ import {
   DRIVER_TWO,
   RIDER,
   STAND,
+  SCOPE,
   SUBJECT_ONE,
   SUBJECT_TWO,
   TOWN,
 } from '../unit/application/demo-data.fixtures';
 import {
+  type InvitationState,
+  operationsDevice,
   operationsEvent,
   operationsDrivers,
   OTHER_OPERATIONS_RUN,
   OTHER_OPERATIONS_STAND,
 } from '../contract/coordinator-operations.contract';
-import { BOOKING_ID } from '../contract/contract-data.fixtures';
+import { BOOKING_ID, OFFER, TRIP } from '../contract/contract-data.fixtures';
 import { unwrap } from '../unit/domain/dispatch/booking.fixtures';
 import { prepareContractDatabase, runLocalSql } from './contract-database.fixtures';
 
-export async function preparePostgresOperations() {
-  const { transaction } = await prepareContractDatabase('events');
+import { offerContractRepository, tripContractRepository } from './dispatch-contract.fixtures';
+
+export async function preparePostgresOperations(state: InvitationState = 'free') {
+  const persistence = await prepareContractDatabase('events');
+  seedPostgresRoster();
+  const { transaction } = persistence;
+  for (const driver of operationsDrivers) unwrap(await transaction.drivers.save(driver, null));
+  unwrap(await transaction.events.append(operationsEvent));
+  if (state === 'bound') unwrap(await transaction.devices.save(operationsDevice, null));
+  if (state === 'offering')
+    unwrap(
+      await offerContractRepository(persistence).save(
+        { ...SCOPE, offer: OFFER, status: 'pending' },
+        null,
+      ),
+    );
+  if (state === 'on_trip') unwrap(await tripContractRepository(persistence).save(TRIP, null));
+  const reader = process.env.DATABASE_READER_URL;
+  const writer = process.env.DATABASE_WRITER_URL;
+  if (!reader || !writer) throw new Error('Missing scoped database connections');
+  return {
+    dashboard: new PostgresCoordinatorDashboardReader(getPostgresConnection(reader)),
+    complaints: new PostgresDemoComplaintWriter(getPostgresConnection(writer)),
+  };
+}
+
+function seedPostgresRoster() {
   runLocalSql(`
     begin;
     update auth.users set is_anonymous = true where id in ('${RIDER}', '${SUBJECT_TWO}');
@@ -43,13 +71,4 @@ export async function preparePostgresOperations() {
       values ('${COORDINATOR}', '${SUBJECT_ONE}', '${TOWN}', '${DEMO_RUN}', '${STAND}', 'active');
     commit;
   `);
-  for (const driver of operationsDrivers) unwrap(await transaction.drivers.save(driver, null));
-  unwrap(await transaction.events.append(operationsEvent));
-  const reader = process.env.DATABASE_READER_URL;
-  const writer = process.env.DATABASE_WRITER_URL;
-  if (!reader || !writer) throw new Error('Missing scoped database connections');
-  return {
-    dashboard: new PostgresCoordinatorDashboardReader(getPostgresConnection(reader)),
-    complaints: new PostgresDemoComplaintWriter(getPostgresConnection(writer)),
-  };
 }

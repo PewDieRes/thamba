@@ -90,14 +90,47 @@ interface OperationsAdapters {
   complaints: DemoComplaintWriter;
 }
 
-export function coordinatorOperationsContract(prepare: () => Promise<OperationsAdapters>) {
+export type InvitationState = 'free' | 'bound' | 'offering' | 'on_trip';
+export const operationsDevice = {
+  driverId: DRIVER_ONE,
+  subject: SUBJECT_TWO,
+  boundAt: NOW,
+  status: 'active',
+} as const;
+type PrepareOperations = (state?: InvitationState) => Promise<OperationsAdapters>;
+
+export function coordinatorOperationsContract(prepare: PrepareOperations) {
   describe('Coordinator dashboard and Demo complaints', () => {
+    invitationFactsContract(prepare);
     dashboardReaderContract(prepare);
     complaintWriterContract(prepare);
   });
 }
 
-function dashboardReaderContract(prepare: () => Promise<OperationsAdapters>) {
+function invitationFactsContract(prepare: PrepareOperations) {
+  test.each(['free', 'bound', 'offering', 'on_trip'] as const)(
+    'returns the invitation facts for a %s Driver',
+    async (state) => {
+      const { dashboard } = await prepare(state);
+      const snapshot = unwrap(await dashboard.read(request));
+      expect(snapshot.inviteScope).toEqual({
+        bookingMode: 'simulated',
+        hasSimulationProfile: true,
+        isInDemoRun: true,
+      });
+      expect(snapshot.drivers[0]?.inviteFacts).toEqual({
+        isSynthetic: true,
+        hasSlot: true,
+        hasDevice: state === 'bound',
+        hasPendingOffer: state === 'offering',
+        hasActiveTrip: state === 'on_trip',
+      });
+      expect(snapshot.drivers[0]).not.toHaveProperty('canInvite');
+    },
+  );
+}
+
+function dashboardReaderContract(prepare: PrepareOperations) {
   test('returns only the authorized Stand roster, bookings and queue changes', async () => {
     const { dashboard } = await prepare();
     const result = unwrap(await dashboard.read(request));
@@ -107,7 +140,6 @@ function dashboardReaderContract(prepare: () => Promise<OperationsAdapters>) {
         driverId: DRIVER_ONE,
         vehicleNumber: 'DEMO 01',
         availability: 'offline',
-        hasDevice: false,
       },
     ]);
     expect(result.bookings).toMatchObject([{ bookingId: BOOKING_ID, fareInPaise: 7000 }]);
@@ -130,7 +162,7 @@ function dashboardReaderContract(prepare: () => Promise<OperationsAdapters>) {
   });
 }
 
-function complaintWriterContract(prepare: () => Promise<OperationsAdapters>) {
+function complaintWriterContract(prepare: PrepareOperations) {
   test('allows a complaint ID independently in each run and rejects cross-run writes', async () => {
     const { complaints } = await prepare();
     const first = {

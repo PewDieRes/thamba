@@ -14,6 +14,8 @@ A Coordinator issues a short-lived invite for one synthetic Driver roster entry 
 
 The redemption transaction validates invite status, expiry, Stand and roster eligibility, and the current anonymous session. It consumes the invite and creates the binding together. Version and unique constraints ensure only one session wins. A retry by the winning session can recover the committed result without creating a second binding. For a lost session, the Coordinator revokes the old binding, withdraws unused invites and issues a new one. An active offer or Trip must be resolved through its recorded workflow before rebinding affects access. Rate-limit session creation, invite issue and redemption.
 
+The Coordinator Dashboard and the invite command share the Driver invitation eligibility policy. The policy reads Demo Run and Town booking facts, synthetic Driver status, active device binding, and Driver slot state.
+
 ## Alternatives considered
 
 | Alternative | Trade-off |
