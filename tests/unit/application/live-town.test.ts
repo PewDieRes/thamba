@@ -49,11 +49,17 @@ test('a licensed live Town quotes and dispatches in its live scope', async () =>
     await app.requestRide.execute({ ...requestInput, quoteId: quote.quoteId }),
   );
   expect(unwrap(await app.advanceDispatch.execute({ bookingId })).status).toBe('offering');
+  expect(
+    unwrap(await app.getBookingStatusForRider.execute({ bookingId, riderId: quoteInput.riderId })),
+  ).toMatchObject({ capability: { kind: 'live', ulin: 'fixture-ulin' }, status: 'offering' });
 
   app.clock.set(licence.endsAt);
   expect(unwrap(await app.advanceDispatch.execute({ bookingId })).noDriverFoundReason).toBe(
     'booking_unavailable',
   );
+  expect(
+    unwrap(await app.getBookingStatusForRider.execute({ bookingId, riderId: quoteInput.riderId })),
+  ).toMatchObject({ status: 'no_driver_found', coordinatorContact: DEMO_STAND.coordinatorContact });
   expect(unwrap(await app.getTownOverview.execute({ slug: DEMO_TOWN.slug })).capability).toEqual({
     kind: 'information_only',
     reason: 'licence_expired',
