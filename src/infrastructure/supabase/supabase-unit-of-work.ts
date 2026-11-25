@@ -17,11 +17,14 @@ export class SupabaseUnitOfWork implements UnitOfWork {
   ): Promise<ApplicationResult<T>> {
     let staged: StagedStorage | undefined;
     try {
-      const revision = await this.storage.getRevision();
-      const reader = this.storage.openReader
-        ? await this.storage.openReader(access)
-        : this.storage.list.bind(this.storage);
-      staged = new StagedStorage(this.storage, revision, reader);
+      const snapshot = this.storage.openSnapshot
+        ? await this.storage.openSnapshot(access)
+        : {
+            revision: await this.storage.getRevision(),
+            read: this.storage.list.bind(this.storage),
+            getRevision: this.storage.getRevision.bind(this.storage),
+          };
+      staged = new StagedStorage(this.storage, snapshot);
       const result = await work(this.createTransaction(staged));
       if (result.ok) await staged.commit();
       return result;

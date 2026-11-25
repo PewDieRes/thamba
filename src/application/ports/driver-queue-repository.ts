@@ -14,6 +14,7 @@ export interface DemoDriver {
 }
 
 export interface ScopedQueueEntry extends BookingScope {
+  readonly needsRejoin?: true;
   readonly demoDriver?: DemoDriver;
   readonly simulationSteps?: SimulationSteps;
   readonly entry: DriverQueueEntry;

@@ -9,6 +9,7 @@ export type DriverQueueRow = Pick<
   Tables<'driver_slots'>,
   'driver_id' | 'stand_id' | 'town_id' | 'run_scope_id' | 'pending_offer_id' | 'version'
 > & {
+  needs_rejoin?: Tables<'driver_slots'>['needs_rejoin'];
   queued_at_epoch_microseconds: string | null;
   simulation_steps?: Json;
   demo_driver_name?: string | null;
@@ -23,6 +24,7 @@ export function fromDriverQueueRow(row: DriverQueueRow) {
   };
   return versioned<ScopedQueueEntry>(row, {
     ...readScope(row.town_id, row.run_scope_id),
+    ...(row.needs_rejoin ? { needsRejoin: true } : {}),
     ...mapOptional('simulationSteps', readSimulationSteps(row.simulation_steps)),
     ...mapOptional('demoDriver', readDemoDriver(row)),
     entry:
@@ -45,6 +47,7 @@ export function toDriverQueueRow(value: ScopedQueueEntry): Omit<DriverQueueRow, 
   return {
     ...writeRunScope(value),
     driver_id: entry.driverId,
+    ...(value.needsRejoin ? { needs_rejoin: true } : {}),
     stand_id: entry.standId,
     queued_at_epoch_microseconds:
       entry.availability === 'online' ? entry.queuedAt.toString() : null,

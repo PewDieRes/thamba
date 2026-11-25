@@ -3,6 +3,7 @@ import type { InputOf, InputSchemaFactory } from '@application/contracts/input-s
 
 export function createGetPendingOfferForDriverSchema(schema: InputSchemaFactory) {
   return schema.object({
+    includeDisplay: schema.optional(schema.boolean()),
     subject: schema.validated(createSessionSubject),
   });
 }

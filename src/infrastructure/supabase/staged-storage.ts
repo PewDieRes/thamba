@@ -5,7 +5,7 @@ import {
   StorageFailure,
   type Filter,
   type Resource,
-  type SnapshotReader,
+  type RepositorySnapshot,
   type Row,
   type RepositoryStorage,
   type RowWrite,
@@ -30,12 +30,11 @@ export class StagedStorage implements RepositoryStorage {
 
   constructor(
     private readonly backend: RepositoryBackend,
-    private readonly revision: string,
-    private readonly readSnapshot: SnapshotReader,
+    private readonly snapshot: RepositorySnapshot,
   ) {}
 
   async list<Name extends Resource>(resource: Name, filter: Filter): Promise<Row<Name>[]> {
-    const rows = await this.readSnapshot(resource, filter, this.revision);
+    const rows = await this.snapshot.read(resource, filter, this.snapshot.revision);
     for (const write of this.#writes) {
       if (write.resource !== resource) continue;
       const index = rows.findIndex((row) => matches(row, write.key));
@@ -85,7 +84,7 @@ export class StagedStorage implements RepositoryStorage {
   async commit(): Promise<void> {
     this.close();
     if (this.#writes.length === 0) {
-      if ((await this.backend.getRevision()) !== this.revision) {
+      if ((await this.snapshot.getRevision()) !== this.snapshot.revision) {
         throw new StorageFailure('40001');
       }
       return;
@@ -101,7 +100,7 @@ export class StagedStorage implements RepositoryStorage {
       available.size === 1 && key
         ? (this.#observedScopes.get(key) ?? available.get(key))
         : undefined;
-    await this.backend.commit(this.#writes, this.revision, scope);
+    await this.backend.commit(this.#writes, this.snapshot.revision, scope);
   }
 
   private isOpen(): boolean {

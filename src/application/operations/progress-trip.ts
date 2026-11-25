@@ -1,5 +1,5 @@
 import type { Booking } from '@domain/dispatch/booking';
-import type { BookingId, SessionSubject } from '@domain/shared/ids.value-object';
+import type { BookingId, DriverId, SessionSubject } from '@domain/shared/ids.value-object';
 import type { Instant } from '@domain/shared/instant.value-object';
 import { err } from '@domain/shared/result';
 import type { IdGenerator } from '../ports/id-generator';
@@ -29,5 +29,17 @@ export async function progressTrip(
     ids,
     expectedVersion: current.version,
   });
-  return saved.ok ? commit(mapBookingProgress(decision.value.booking)) : saved;
+  if (!saved.ok) return saved;
+  if (action === 'completeTrip') {
+    const marked = await markQueueRejoin(tx, session.value.driverId);
+    if (!marked.ok) return marked;
+  }
+  return commit(mapBookingProgress(decision.value.booking));
+}
+
+async function markQueueRejoin(tx: Transaction, driverId: DriverId) {
+  const queue = await tx.drivers.get(driverId);
+  return queue
+    ? tx.drivers.save({ ...queue.value, needsRejoin: true }, queue.version)
+    : err({ code: 'inconsistent_state' as const });
 }
