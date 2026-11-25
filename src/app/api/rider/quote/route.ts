@@ -12,10 +12,10 @@ import { guardRateLimit } from '@interface/routes/route-guards';
 import { z } from 'zod';
 
 const schema = z.strictObject({
-  townId: z.uuid(),
+  townId: z.guid(),
   demoRunId: z.uuid().optional(),
-  pickupLandmarkId: z.uuid(),
-  destinationLandmarkId: z.uuid(),
+  pickupLandmarkId: z.guid(),
+  destinationLandmarkId: z.guid(),
   passengers: z.int(),
   pickupAtEpochMilliseconds: z.int().optional(),
   commandKey,

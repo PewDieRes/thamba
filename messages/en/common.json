@@ -1,3 +1,8 @@
 {
-  "appName": "Thamba"
+  "appName": "Thamba",
+  "skip": "Skip to content",
+  "languages": "Language",
+  "chooseTown": "Choose a Town",
+  "demoTown": "Demo Town",
+  "malvan": "Malvan"
 }

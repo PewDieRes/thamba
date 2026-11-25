@@ -6,7 +6,7 @@ import { respondError } from './application-response';
 
 const booking = z.strictObject({
   quoteId: z.uuid(),
-  standId: z.uuid(),
+  standId: z.guid(),
   commandKey,
   isScheduled: z.boolean().optional(),
 });
