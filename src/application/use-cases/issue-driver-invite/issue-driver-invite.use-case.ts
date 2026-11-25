@@ -35,7 +35,7 @@ export class IssueDriverInvite {
     const { commands, clock, ids, hasher, tokens } = this.ports;
     return validateInput(this.schema, input, async (value) => {
       const actor = `coordinator:${value.coordinatorId}`;
-      // Recover the same token on replay without persisting the credential.
+      // The persisted command identity and verified input recover the token without storing it.
       const token = tokens.derive(
         JSON.stringify([actor, value.commandKey, value.standId, value.driverId]),
       );

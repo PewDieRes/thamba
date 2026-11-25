@@ -19,6 +19,6 @@ clock reading. Callers can advance a requested Booking after confirmation,
 decline or withdrawal.
 
 `createConfiguredContainer()` selects the in-memory store under `NODE_ENV=test`
-and Supabase for the server runtime. The server reads `SUPABASE_URL` and
-`SUPABASE_SERVICE_ROLE_KEY`. Integration tests explicitly select Supabase and
-use local credentials from the Supabase CLI.
+and Supabase for the server runtime. The server reads `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY` and `INVITE_TOKEN_SECRET`. Integration tests explicitly
+select Supabase and use local credentials and a fixed invite token secret.

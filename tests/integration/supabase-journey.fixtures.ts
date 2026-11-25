@@ -3,7 +3,7 @@ import type { BookingId } from '@domain/shared/ids.value-object';
 import type { Transaction } from '@application/ports/unit-of-work';
 import { FixedClock } from '@infrastructure/clock/fixed-clock';
 import { createConfiguredContainer } from '@infrastructure/composition/container';
-import { quoteInput, requestInput, unwrap } from '../unit/application/demo.fixtures';
+import { inviteInput, quoteInput, requestInput, unwrap } from '../unit/application/demo.fixtures';
 import {
   DRIVER_ONE,
   NOW,
@@ -14,11 +14,21 @@ import {
 } from '../unit/application/demo-data.fixtures';
 import { getLocalConfiguration, prepareContractDatabase } from './contract-database.fixtures';
 
+function createSupabaseApp() {
+  const configuration = {
+    ...getLocalConfiguration(),
+    inviteTokenSecret: Buffer.alloc(32, 1).toString('base64'),
+  };
+  return createConfiguredContainer(configuration, { clock: new FixedClock(NOW) });
+}
+
 export function registerSupabaseJourney() {
+  test('redeems an invite replayed through a second server container', redeemReplayedInvite);
+
   test('commits and replays a Demo Town ride through the server container', async () => {
     const { transaction } = await prepareContractDatabase('quotes');
     await seedDriver(transaction);
-    const app = createConfiguredContainer(getLocalConfiguration(), { clock: new FixedClock(NOW) });
+    const app = createSupabaseApp();
 
     const quote = unwrap(await app.quoteFare.execute(quoteInput));
     const request = { ...requestInput, quoteId: quote.quoteId };
@@ -48,6 +58,31 @@ export function registerSupabaseJourney() {
     expect(events.filter(({ event }) => event.type === 'RideOfferAccepted')).toHaveLength(1);
     expect(events.some(({ event }) => event.type === 'TripCompleted')).toBe(true);
   });
+}
+
+async function redeemReplayedInvite() {
+  const { transaction } = await prepareContractDatabase('invites');
+  unwrap(
+    await transaction.drivers.save(
+      { ...SCOPE, entry: { driverId: DRIVER_ONE, standId: STAND, availability: 'offline' } },
+      null,
+    ),
+  );
+
+  const input = { ...inviteInput, driverId: DRIVER_ONE };
+  const issued = unwrap(await createSupabaseApp().issueDriverInvite.execute(input));
+  const secondApp = createSupabaseApp();
+  const replayed = unwrap(await secondApp.issueDriverInvite.execute(input));
+  const redeemed = await secondApp.redeemDriverInvite.execute({
+    token: replayed.token,
+    subject: SUBJECT_ONE,
+    commandKey: 'redeem-invite',
+  });
+
+  expect(redeemed).toEqual({ ok: true, value: { status: 'active', driverId: DRIVER_ONE } });
+  expect(replayed).toEqual(issued);
+  const events = await transaction.events.list();
+  expect(events.filter(({ event }) => event.type === 'DriverInviteIssued')).toHaveLength(1);
 }
 
 async function seedDriver({ devices, drivers }: Transaction) {
