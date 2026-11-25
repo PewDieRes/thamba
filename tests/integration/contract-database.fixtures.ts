@@ -20,7 +20,7 @@ import {
 import { BOOKING, OTHER_BOOKING_ID } from '../contract/contract-data.fixtures';
 import { Booking } from '@domain/dispatch/booking';
 
-type Fixture = keyof Transaction | 'unitOfWork';
+type Fixture = keyof Transaction | 'unitOfWork' | 'demoRun';
 
 export function runLocalSql(input: string): void {
   execFileSync(
@@ -106,13 +106,24 @@ export async function prepareContractDatabase(fixture: Fixture) {
 }
 
 async function seedContractDatabase(fixture: Fixture, tx: Transaction) {
-  assertSaved(await tx.towns.save(CONTRACT_TOWN, null));
+  assertSaved(
+    await tx.towns.save(
+      fixture === 'demoRun' ? { ...CONTRACT_TOWN, demoRuns: [] } : CONTRACT_TOWN,
+      null,
+    ),
+  );
   runLocalSql(`
     insert into public.landmarks (id, town_id, slug, name) values
       ('${PICKUP}', '${TOWN}', 'pickup', 'Pickup'),
       ('${DESTINATION}', '${TOWN}', 'destination', 'Destination');
   `);
-  if (fixture === 'stands' || fixture === 'commands' || fixture === 'fareCharts') return;
+  if (
+    fixture === 'demoRun' ||
+    fixture === 'stands' ||
+    fixture === 'commands' ||
+    fixture === 'fareCharts'
+  )
+    return;
   assertSaved(await tx.stands.save(DEMO_STAND, null));
   assertSaved(await tx.fareCharts.save(FARE_CHART, null));
   runLocalSql(`

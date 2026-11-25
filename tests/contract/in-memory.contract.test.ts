@@ -1,3 +1,6 @@
+import { demoRunProvisionerContract } from './demo-run-provisioner.contract';
+import { DEMO_TOWN } from '../unit/application/demo-data.fixtures';
+import { unwrap } from '../unit/domain/dispatch/booking.fixtures';
 import { describe } from 'vitest';
 import {
   createInMemoryContainer,
@@ -31,5 +34,12 @@ describe('in-memory adapters', () => {
   driverDeviceRepositoryContract(() => createMemoryTransaction(new MemoryStore()).devices);
   commandLogContract(() => createMemoryTransaction(new MemoryStore()).commands);
   eventLogContract(() => createMemoryTransaction(new MemoryStore()).events);
+  demoRunProvisionerContract(async () => {
+    const app = createInMemoryContainer();
+    unwrap(
+      await app.unitOfWork.run(({ towns }) => towns.save({ ...DEMO_TOWN, demoRuns: [] }, null)),
+    );
+    return app;
+  });
   unitOfWorkContract(() => createInMemoryContainer().unitOfWork);
 });

@@ -8,6 +8,7 @@ export interface Stand extends BookingScope {
   readonly names?: Translations;
   readonly coordinatorContacts?: Translations;
   readonly standId: StandId;
+  readonly pickupCueTranslations?: Readonly<Partial<Record<LandmarkId, Translations>>>;
   readonly pickupCues: Readonly<Partial<Record<LandmarkId, string>>>;
   readonly neighbourStandIds: readonly StandId[];
   readonly coordinatorContact: string;

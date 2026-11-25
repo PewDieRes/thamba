@@ -1,5 +1,6 @@
 import type { ScopedQueueEntry, SimulationSteps } from '@application/ports/driver-queue-repository';
 import type { OnlineDriverQueueEntry } from '@domain/dispatch/driver-queue-entry';
+import { readTranslations } from './catalogue.mapper';
 import type { Json, Tables } from './database.types';
 import { z } from 'zod';
 import { mapOptional, readScope, versioned, writeRunScope } from './row.mapper';
@@ -7,7 +8,13 @@ import { mapOptional, readScope, versioned, writeRunScope } from './row.mapper';
 export type DriverQueueRow = Pick<
   Tables<'driver_slots'>,
   'driver_id' | 'stand_id' | 'town_id' | 'run_scope_id' | 'pending_offer_id' | 'version'
-> & { queued_at_epoch_microseconds: string | null; simulation_steps?: Json };
+> & {
+  queued_at_epoch_microseconds: string | null;
+  simulation_steps?: Json;
+  demo_driver_name?: string | null;
+  demo_driver_names?: Json;
+  demo_vehicle_number?: string | null;
+};
 
 export function fromDriverQueueRow(row: DriverQueueRow) {
   const identity = {
@@ -17,6 +24,7 @@ export function fromDriverQueueRow(row: DriverQueueRow) {
   return versioned<ScopedQueueEntry>(row, {
     ...readScope(row.town_id, row.run_scope_id),
     ...mapOptional('simulationSteps', readSimulationSteps(row.simulation_steps)),
+    ...mapOptional('demoDriver', readDemoDriver(row)),
     entry:
       row.queued_at_epoch_microseconds === null
         ? { ...identity, availability: 'offline' }
@@ -57,4 +65,13 @@ function readSimulationSteps(value: Json | undefined): SimulationSteps | undefin
   return Object.fromEntries(
     parsed.data.map(({ action, delay_seconds }) => [action, delay_seconds]),
   );
+}
+
+function readDemoDriver(row: DriverQueueRow) {
+  if (row.demo_driver_name == null || row.demo_vehicle_number == null) return undefined;
+  return {
+    name: row.demo_driver_name,
+    names: readTranslations(row.demo_driver_names),
+    vehicleNumber: row.demo_vehicle_number,
+  };
 }

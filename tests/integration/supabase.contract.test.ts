@@ -1,3 +1,7 @@
+import { createConfiguredContainer } from '@infrastructure/composition/container';
+import { demoRunProvisionerContract } from '../contract/demo-run-provisioner.contract';
+import { unwrap } from '../unit/domain/dispatch/booking.fixtures';
+import { createSessionSubject } from '@domain/shared/ids.value-object';
 import { registerPostgresScopeTests } from './postgres-scope-isolation.fixtures';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { bookingRepositoryContract } from '../contract/booking-repository.contract';
@@ -13,14 +17,18 @@ import { standRepositoryContract } from '../contract/stand-repository.contract';
 import { townRepositoryContract } from '../contract/town-repository.contract';
 import { tripRepositoryContract } from '../contract/trip-repository.contract';
 import { unitOfWorkContract } from '../contract/unit-of-work.contract';
-import { DEMO_STAND, TOWN } from '../unit/application/demo-data.fixtures';
+import { DEMO_STAND, RIDER, TOWN } from '../unit/application/demo-data.fixtures';
 import {
   cleanContractDatabase,
   CONTRACT_TOWN,
   prepareContractDatabase,
 } from './contract-database.fixtures';
 import { offerContractRepository, tripContractRepository } from './dispatch-contract.fixtures';
-import { dropScopedConnections, prepareScopedConnections } from './scoped-database.fixtures';
+import {
+  dropScopedConnections,
+  getScopedConfiguration,
+  prepareScopedConnections,
+} from './scoped-database.fixtures';
 import { registerSessionTests } from './supabase-session.fixtures';
 import { registerSupabaseJourney } from './supabase-journey.fixtures';
 
@@ -36,6 +44,19 @@ afterAll(() => {
 describe('Supabase adapters', () => {
   registerRepositoryContracts();
   unitOfWorkContract(async () => (await prepareContractDatabase('unitOfWork')).unitOfWork);
+  demoRunProvisionerContract(async () => {
+    await prepareContractDatabase('demoRun');
+    return createConfiguredContainer(getScopedConfiguration(), {
+      actorContext: {
+        getActor: () =>
+          Promise.resolve({
+            kind: 'anonymous',
+            subject: unwrap(createSessionSubject(RIDER)),
+            hasDriverDevice: false,
+          }),
+      },
+    });
+  });
   registerSupabaseJourney();
   registerSessionTests();
   registerPostgresScopeTests();
@@ -55,7 +76,15 @@ function registerRepositoryContracts() {
   driverQueueRepositoryContract(
     async () => (await prepareContractDatabase('drivers')).transaction.drivers,
   );
-  eventLogContract(async () => (await prepareContractDatabase('events')).transaction.events);
+  eventLogContract(async () => {
+    const {
+      transaction: { events },
+    } = await prepareContractDatabase('events');
+    return {
+      append: (event) => events.append(event),
+      list: async () => (await events.list()).filter(({ event }) => event.townId === TOWN),
+    };
+  });
   fareChartRepositoryContract(
     async () => (await prepareContractDatabase('fareCharts')).transaction.fareCharts,
   );

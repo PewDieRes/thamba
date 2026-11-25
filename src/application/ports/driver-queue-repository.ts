@@ -1,12 +1,20 @@
 import type { DriverQueueEntry } from '@domain/dispatch/driver-queue-entry';
 import type { DriverId, StandId } from '@domain/shared/ids.value-object';
 import type { BookingScope } from '@domain/town/town';
+import type { Translations } from '../contracts/town-overview-view';
 
 export type SimulationSteps = Readonly<
-  Partial<Record<'accept' | 'arrive' | 'start' | 'complete', number>>
+  Partial<Record<'accept' | 'arrive' | 'start' | 'complete' | 'decline', number>>
 >;
 
+export interface DemoDriver {
+  readonly name: string;
+  readonly names: Translations;
+  readonly vehicleNumber: string;
+}
+
 export interface ScopedQueueEntry extends BookingScope {
+  readonly demoDriver?: DemoDriver;
   readonly simulationSteps?: SimulationSteps;
   readonly entry: DriverQueueEntry;
 }

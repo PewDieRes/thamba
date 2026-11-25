@@ -7,6 +7,7 @@ import type { IdGenerator } from '@application/ports/id-generator';
 import type { UnitOfWork } from '@application/ports/unit-of-work';
 import { err, ok } from '@domain/shared/result';
 import { evaluateBookingCapability } from '@domain/town/town';
+import { buildDemoRun } from './demo-scenario';
 import type { StartDemoRunInput } from './start-demo-run.input';
 
 export class StartDemoRun {
@@ -28,17 +29,31 @@ export class StartDemoRun {
       input,
       async (value) => {
         const { townId, standId: templateStandId, riderId } = value;
-        const canStart = await unitOfWork.run(
-          async ({ towns }) => {
+        const now = clock.now();
+        const template = await unitOfWork.run(
+          async ({ towns, stands }) => {
             const town = (await towns.get(townId))?.value.town;
-            return ok(town && evaluateBookingCapability(town, clock.now()).kind === 'simulated');
+            if (!town || evaluateBookingCapability(town, now).kind !== 'simulated') {
+              return err({ code: 'booking_unavailable' });
+            }
+            const stand = (await stands.get(templateStandId))?.value;
+            if (!stand || stand.townId !== townId || stand.demoRunId !== undefined) {
+              return err({ code: 'not_found' });
+            }
+            return ok(stand);
           },
           { target: { kind: 'town', townId } },
         );
-        if (!canStart.ok) return canStart;
-        if (!canStart.value) return err({ code: 'booking_unavailable' });
+        if (!template.ok) return template;
         const scope = { demoRunId: ids.next<'DemoRun'>(), standId: ids.next<'Stand'>(), townId };
-        const saved = await demoRuns.provision({ ...scope, templateStandId, riderId });
+        const fixtures = buildDemoRun('successful_trip', {
+          ...scope,
+          riderId,
+          templateStand: template.value,
+          driverId: ids.next<'Driver'>(),
+          now,
+        });
+        const saved = await demoRuns.provision(fixtures);
         return saved.ok ? ok(scope) : saved;
       },
     );

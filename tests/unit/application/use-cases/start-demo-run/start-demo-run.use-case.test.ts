@@ -1,9 +1,24 @@
+import type { UnitOfWork } from '@application/ports/unit-of-work';
+import type { DemoRunProvisioner } from '@application/ports/demo-run-provisioner';
+import { buildDemoRun } from '@application/use-cases/start-demo-run/demo-scenario';
+import { createDemoRunId, createStandId } from '@domain/shared/ids.value-object';
 import { expect, test, vi } from 'vitest';
-import { createDemo } from '../../demo.fixtures';
-import { DEMO_STAND, MALVAN_TOWN, SUBJECT_ONE, TOWN } from '../../demo-data.fixtures';
+import { createDemo, unwrap } from '../../demo.fixtures';
+import {
+  DEMO_STAND,
+  MALVAN_TOWN,
+  SUBJECT_ONE,
+  TOWN,
+  uuid,
+  DRIVER_ONE,
+  NOW,
+  RIDER,
+} from '../../demo-data.fixtures';
 
 test('starts an isolated Demo Run for the verified anonymous Rider', async () => {
-  const provision = vi.fn(() => Promise.resolve({ ok: true as const, value: undefined }));
+  const provision = vi.fn<DemoRunProvisioner['provision']>(() =>
+    Promise.resolve({ ok: true, value: undefined }),
+  );
   const app = await createDemo({
     actorContext: {
       getActor: () =>
@@ -11,11 +26,26 @@ test('starts an isolated Demo Run for the verified anonymous Rider', async () =>
     },
     demoRuns: { provision },
   });
-  const result = await app.startDemoRun.execute({ townId: TOWN, standId: DEMO_STAND.standId });
-  expect(result).toMatchObject({ ok: true });
-  expect(provision).toHaveBeenCalledWith(
-    expect.objectContaining({ riderId: SUBJECT_ONE, townId: TOWN }),
-  );
+  const standId = await seedTemplateStand(app.unitOfWork);
+  const scope = unwrap(await app.startDemoRun.execute({ townId: TOWN, standId }));
+  expect(provision).toHaveBeenCalledTimes(1);
+  const [fixtures] = provision.mock.calls[0] ?? [];
+  expect(fixtures?.run).toMatchObject({
+    riderId: SUBJECT_ONE,
+    demoRunId: scope.demoRunId,
+    townId: TOWN,
+  });
+  expect(fixtures?.stand).toMatchObject({
+    standId: scope.standId,
+    pickupCues: DEMO_STAND.pickupCues,
+    neighbourStandIds: [],
+  });
+  expect(fixtures?.drivers).toMatchObject([
+    {
+      simulationSteps: { accept: 2, arrive: 3, start: 3, complete: 5 },
+      entry: { availability: 'online', standId: scope.standId },
+    },
+  ]);
 });
 
 test('denies a Demo Run for Malvan', async () => {
@@ -35,3 +65,40 @@ test('denies a Demo Run for Malvan', async () => {
   ).toMatchObject({ ok: false });
   expect(provision).not.toHaveBeenCalled();
 });
+
+test('builds queue exhaustion with a scripted decline in an isolated roster', () => {
+  const standId = unwrap(createStandId(uuid(104)));
+  const demoRunId = unwrap(createDemoRunId(uuid(105)));
+  const fixtures = buildDemoRun('queue_exhaustion', {
+    templateStand: { ...DEMO_STAND, neighbourStandIds: [standId] },
+    standId,
+    demoRunId,
+    riderId: RIDER,
+    driverId: DRIVER_ONE,
+    now: NOW,
+  });
+  expect(fixtures.stand).toMatchObject({ standId, demoRunId, neighbourStandIds: [] });
+  expect(fixtures.drivers).toMatchObject([
+    { demoRunId, simulationSteps: { decline: 2 }, entry: { standId, driverId: DRIVER_ONE } },
+  ]);
+});
+
+async function seedTemplateStand(unitOfWork: UnitOfWork) {
+  const standId = unwrap(createStandId(uuid(103)));
+  const { coordinatorContact, pickupCues } = DEMO_STAND;
+  unwrap(
+    await unitOfWork.run(({ stands }) =>
+      stands.save(
+        {
+          townId: TOWN,
+          standId,
+          coordinatorContact,
+          pickupCues,
+          neighbourStandIds: [],
+        },
+        null,
+      ),
+    ),
+  );
+  return standId;
+}

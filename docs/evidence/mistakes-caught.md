@@ -4,3 +4,4 @@
 | The in-memory transaction factory constructed repository adapters outside the designated container.                             | review     | https://github.com/PewDieRes/thamba/pull/40 |
 | The Supabase container generated a new invite token signing secret per instance, making replayed Driver invite tokens unusable. | review     | TODO                                        |
 | The Rider display mapper suppressed configured Stand Coordinator phone numbers, violating dispatch invariant I11.               | review     | TODO                                        |
+| Demo Run provisioning selected the scenario in SQL and omitted the scripted Driver roster from the in-memory adapter.           | review     | TODO                                        |
