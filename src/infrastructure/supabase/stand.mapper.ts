@@ -3,7 +3,9 @@ import { readTranslations } from './catalogue.mapper';
 import type { Json, Tables } from './database.types';
 import { readScope, versioned, writeScope } from './row.mapper';
 
-type PickupCueRow = Pick<Tables<'stand_pickup_cues'>, 'landmark_id' | 'pickup_cue'>;
+type PickupCueRow = Pick<Tables<'stand_pickup_cues'>, 'landmark_id' | 'pickup_cue'> & {
+  pickup_cue_translations?: Json;
+};
 
 export type StandRow = Pick<
   Tables<'stands'>,
@@ -23,6 +25,7 @@ export function fromStandRow(row: StandRow) {
     coordinatorContact: row.coordinator_contact,
     ...(row.name === undefined || row.name === 'Stand' ? {} : { name: row.name }),
     ...readStandTranslations(row),
+    ...readPickupCueTranslations(row.pickup_cues),
     neighbourStandIds: row.neighbour_stand_ids.map((id) => id as Stand['standId']),
     pickupCues: Object.fromEntries(
       row.pickup_cues.map(({ landmark_id, pickup_cue }) => [landmark_id, pickup_cue]),
@@ -49,4 +52,12 @@ function readStandTranslations(row: StandRow) {
     ...(Object.keys(names).length ? { names } : {}),
     ...(Object.keys(coordinatorContacts).length ? { coordinatorContacts } : {}),
   };
+}
+
+function readPickupCueTranslations(cues: PickupCueRow[]) {
+  const translations = cues.flatMap(({ landmark_id, pickup_cue_translations }) => {
+    const names = readTranslations(pickup_cue_translations);
+    return Object.keys(names).length ? [[landmark_id, names] as const] : [];
+  });
+  return translations.length ? { pickupCueTranslations: Object.fromEntries(translations) } : {};
 }

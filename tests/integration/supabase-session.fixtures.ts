@@ -159,7 +159,9 @@ async function bookAsAnonymousRider() {
   );
   const app = createApp(owner, riderBookings);
   const { demoRunId, standId } = unwrap(
-    await app.startDemoRun.execute({ townId: TOWN, standId: templateStandId }),
+    await createConfiguredContainer(getScopedConfiguration(), {
+      actorContext: owner,
+    }).startDemoRun.execute({ townId: TOWN, standId: templateStandId }),
   );
   const { quoteId } = unwrap(await app.quoteFare.execute({ ...quoteInput, demoRunId }));
   const { bookingId } = unwrap(

@@ -61,7 +61,9 @@ export function registerSupabaseJourney() {
       unwrap(await app.getBookingStatusForRider.execute({ bookingId, riderId: RIDER })).status,
     ).toBe('completed');
     expect(await transaction.trips.findActiveByDriver(DRIVER_ONE)).toBeUndefined();
-    const events = await transaction.events.list();
+    const events = (await transaction.events.list()).filter(
+      ({ event }) => event.demoRunId === SCOPE.demoRunId,
+    );
     expect(events.filter(({ event }) => event.type === 'RideOfferAccepted')).toHaveLength(1);
     expect(events.some(({ event }) => event.type === 'TripCompleted')).toBe(true);
   });
@@ -88,7 +90,9 @@ async function redeemReplayedInvite() {
 
   expect(redeemed).toEqual({ ok: true, value: { status: 'active', driverId: DRIVER_ONE } });
   expect(replayed).toMatchObject({ ok: false, error: { code: 'invite_already_issued' } });
-  const events = await transaction.events.list();
+  const events = (await transaction.events.list()).filter(
+    ({ event }) => event.demoRunId === SCOPE.demoRunId,
+  );
   expect(events.filter(({ event }) => event.type === 'DriverInviteIssued')).toHaveLength(1);
 }
 

@@ -81,9 +81,9 @@ function createApplicationContainer(
   overrides: Partial<ContainerPorts> & Pick<ContainerPorts, 'tokens'>,
 ) {
   const notifier = overrides.notifier ?? new InMemoryDriverNotifier();
+  const ports = { ...getPersistenceDefaults(unitOfWork), ...overrides };
   const useCases = createContainer({
-    ...getPersistenceDefaults(unitOfWork),
-    ...overrides,
+    ...ports,
     unitOfWork,
     notifier,
     clock: overrides.clock ?? new SystemClock(toInstant),
@@ -91,7 +91,7 @@ function createApplicationContainer(
     ids: overrides.ids ?? new RandomIdGenerator(),
     logger: overrides.logger ?? new InMemoryLogger(),
   });
-  return { ...useCases, unitOfWork, notifier };
+  return { ...useCases, unitOfWork, notifier, demoRuns: ports.demoRuns };
 }
 
 export function createMemoryTransaction({ tables }: MemoryStore): Transaction {

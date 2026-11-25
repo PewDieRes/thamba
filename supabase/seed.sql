@@ -9,28 +9,8 @@ values
     '{"mr":"परवाना प्रलंबित आहे. तक्रारींसाठी संपर्क अद्याप निश्चित झालेला नाही.",
       "hi":"लाइसेंस लंबित है। शिकायतों के लिए संपर्क अभी तय नहीं है।"}', 'simulated');
 
-insert into public.simulation_profiles (town_id, kind, scenarios)
-values ('00000000-0000-0000-0000-000000000001', 'synthetic', '{
-  "successful_trip": {
-    "drivers": [{
-      "key": "asha",
-      "name": {"en":"Asha (demo)","mr":"आशा (डेमो)","hi":"आशा (डेमो)"},
-      "steps": [
-        {"action":"accept","delay_seconds":2},
-        {"action":"arrive","delay_seconds":3},
-        {"action":"start","delay_seconds":3},
-        {"action":"complete","delay_seconds":5}
-      ]
-    }]
-  },
-  "queue_exhaustion": {
-    "drivers": [{
-      "key": "asha",
-      "name": {"en":"Asha (demo)","mr":"आशा (डेमो)","hi":"आशा (डेमो)"},
-      "steps": [{"action":"decline","delay_seconds":2}]
-    }]
-  }
-}');
+insert into public.simulation_profiles (town_id, kind)
+values ('00000000-0000-0000-0000-000000000001', 'synthetic');
 
 insert into public.stands (id, town_id, name, name_translations, coordinator_contact,
   coordinator_contact_translations)
