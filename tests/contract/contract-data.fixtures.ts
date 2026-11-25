@@ -33,6 +33,7 @@ export const QUOTE_ID = unwrap(createFareQuoteId(uuid(102)));
 export const OFFER_ID = unwrap(createRideOfferId(uuid(103)));
 export const OTHER_OFFER_ID = unwrap(createRideOfferId(uuid(104)));
 export const TRIP_ID = unwrap(createTripId(uuid(105)));
+export const OTHER_TRIP_ID = unwrap(createTripId(uuid(106)));
 export const TOKEN_HASH = unwrap(createInviteTokenHash('f'.repeat(64)));
 
 export const QUOTE = unwrap(
