@@ -1,5 +1,6 @@
 import type { SimulationSteps } from '@application/ports/driver-queue-repository';
 import { expect, test } from 'vitest';
+import { STAND, COORDINATOR, DRIVER_TWO } from './demo-data.fixtures';
 import { ok } from '@domain/shared/result';
 import { Instant } from '@domain/shared/instant.value-object';
 import { createDemo, dispatchRide, DRIVER_ONE, NOW_MS, unwrap, type Demo } from './demo.fixtures';
@@ -52,6 +53,40 @@ test('a Demo Driver without a scripted acceptance keeps the offer pending', asyn
   expect(unwrap(await app.advanceDispatch.execute({ bookingId: booking.bookingId })).status).toBe(
     'offering',
   );
+});
+
+test('scripted queue exhaustion declines the Ride offer and ends an exhausted search', async () => {
+  const app = await createDemo();
+  unwrap(
+    await app.setDriverAvailability.execute({
+      actor: { type: 'stand_coordinator', standId: STAND, coordinatorId: COORDINATOR },
+      driverId: DRIVER_TWO,
+      isOnline: false,
+      reason: 'break',
+      commandKey: 'second-driver-break',
+    }),
+  );
+  const { booking, offer } = await dispatchRide(app);
+  await configureScript(app, { decline: 2 });
+  app.clock.set(unwrap(Instant.fromEpochMilliseconds(NOW_MS + 1_999)));
+  expect(unwrap(await app.advanceDispatch.execute({ bookingId: booking.bookingId })).status).toBe(
+    'offering',
+  );
+  app.clock.set(unwrap(Instant.fromEpochMilliseconds(NOW_MS + 2_000)));
+  expect(unwrap(await app.advanceDispatch.execute({ bookingId: booking.bookingId })).status).toBe(
+    'requested',
+  );
+  expect(unwrap(await app.advanceDispatch.execute({ bookingId: booking.bookingId })).status).toBe(
+    'no_driver_found',
+  );
+  const recorded = unwrap(
+    await app.unitOfWork.run(async ({ offers }) => ok(await offers.get(offer.offerId))),
+  );
+  expect(recorded?.value.status).toBe('declined');
+  const changes = (await app.events()).flatMap(({ event }) =>
+    event.type === 'DriverQueueChanged' && event.driverId === DRIVER_TWO ? [event.reason] : [],
+  );
+  expect(changes).toEqual(['break']);
 });
 
 async function configureScript(app: Demo, simulationSteps: SimulationSteps) {

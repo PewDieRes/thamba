@@ -7,5 +7,91 @@
     "sent": "If this address is registered, check your inbox for the sign-in link.",
     "try_later": "Try again in a minute.",
     "signedIn": "Signed in as a Coordinator"
+  },
+  "dashboard": {
+    "title": "Coordinator dashboard",
+    "readError": "Could not load this Stand.",
+    "stands": "Stands",
+    "drivers": "Drivers",
+    "noDrivers": "No Drivers at this Stand.",
+    "name": "Driver",
+    "vehicle": "Vehicle number",
+    "availability": "Availability",
+    "position": "Queue position",
+    "tripsToday": "Trips today",
+    "operations": "Operations",
+    "history": "Queue history",
+    "noHistory": "No queue changes yet.",
+    "positionChanges": "Position changes",
+    "outOfQueue": "Out of queue",
+    "live": "Live bookings",
+    "rides": "Rides log",
+    "csv": "Export CSV",
+    "noBookings": "No bookings.",
+    "booking": "Booking",
+    "status": "Status",
+    "pickup": "Pickup time",
+    "fare": "Fare",
+    "saving": "Saving…",
+    "inviteLink": "One-time invite link",
+    "whatsapp": "Share on WhatsApp",
+    "availabilities": {
+      "online": "Online",
+      "offline": "Offline",
+      "reserved": "Ride offer pending",
+      "on_trip": "On a Trip"
+    },
+    "actions": {
+      "rejoin": "Rejoin queue",
+      "offline": "Set offline",
+      "break": "Record break",
+      "walk_up": "Record walk-up",
+      "skip": "Skip Driver",
+      "invite": "Issue invite",
+      "revoke": "Revoke device"
+    },
+    "success": {
+      "rejoin": "Driver rejoined at the tail.",
+      "offline": "Driver is offline.",
+      "break": "Break recorded.",
+      "walk_up": "Walk-up recorded.",
+      "skip": "Driver skipped.",
+      "invite": "Invite issued.",
+      "revoke": "Device revoked."
+    },
+    "error": {
+      "rejoin": "Could not rejoin the queue.",
+      "offline": "Could not set the Driver offline.",
+      "break": "Could not record the break.",
+      "walk_up": "Could not record the walk-up.",
+      "skip": "Could not skip the Driver.",
+      "invite": "Could not issue an invite.",
+      "revoke": "Could not revoke the device."
+    },
+    "reasons": {
+      "available": "Rejoined at the tail",
+      "offline": "Went offline",
+      "break": "Break recorded",
+      "skip": "Coordinator skipped Driver",
+      "walk_up": "Walk-up recorded",
+      "reserved": "Ride offer reserved position",
+      "accepted": "Ride offer accepted",
+      "declined": "Ride offer declined",
+      "expired": "Ride offer timed out",
+      "withdrawn": "Ride offer withdrawn",
+      "cancelled": "Rider cancelled"
+    },
+    "statuses": {
+      "scheduled": "Scheduled",
+      "requested": "Requested",
+      "offering": "Offering",
+      "accepted": "Accepted",
+      "driver_arrived": "Driver arrived",
+      "in_trip": "In Trip",
+      "completed": "Completed",
+      "cancelled_by_rider": "Rider cancelled",
+      "cancelled_by_driver": "Driver cancelled",
+      "no_driver_found": "No Driver found"
+    }
   }
 }
