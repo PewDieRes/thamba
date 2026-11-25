@@ -1,5 +1,6 @@
 import type { InputSchema } from '@application/contracts/input-schema';
-import { validateInput } from '@application/contracts/input-schema';
+import { validateActorInput } from '@application/operations/validate-actor-input';
+import type { ActorContext } from '@application/ports/actor-context';
 import {
   advanceBookingDispatch,
   type DispatchPolicies,
@@ -12,6 +13,7 @@ import type { AdvanceDispatchInput } from './advance-dispatch.input';
 export class AdvanceDispatch {
   constructor(
     private readonly ports: {
+      actorContext: ActorContext;
       commands: CommandExecutor;
       clock: Clock;
       ids: IdGenerator;
@@ -20,14 +22,26 @@ export class AdvanceDispatch {
   ) {}
 
   execute(input: unknown) {
+    return validateActorInput(
+      { actorContext: this.ports.actorContext, role: 'sweep', schema: this.schema },
+      input,
+      (value) => this.advance(value),
+    );
+  }
+
+  private async advance(value: AdvanceDispatchInput) {
     const { commands, clock, ...dispatch } = this.ports;
-    return validateInput(this.schema, input, async (value) => {
-      const advance = () =>
-        commands.run({ actor: 'dispatch', name: 'advance_dispatch', input: value }, (tx) =>
-          advanceBookingDispatch(tx, value.bookingId, { ...dispatch, now: clock.now() }),
-        );
-      const result = await advance();
-      return !result.ok && result.error.code === 'ConcurrencyConflict' ? advance() : result;
-    });
+    const attempt = () =>
+      commands.run(
+        {
+          actor: 'dispatch',
+          name: 'advance_dispatch',
+          target: { kind: 'sweep_booking', bookingId: value.bookingId },
+          input: value,
+        },
+        (tx) => advanceBookingDispatch(tx, value.bookingId, { ...dispatch, now: clock.now() }),
+      );
+    const result = await attempt();
+    return !result.ok && result.error.code === 'ConcurrencyConflict' ? attempt() : result;
   }
 }

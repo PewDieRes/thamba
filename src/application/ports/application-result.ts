@@ -14,12 +14,17 @@ export type ApplicationError =
   | {
       readonly code:
         | 'invalid_input'
+        | 'unauthenticated'
+        | 'forbidden'
+        | 'active_booking_limit'
+        | 'rate_limit_exceeded'
         | 'not_found'
         | 'idempotency_key_reused'
         | 'inconsistent_state'
         | 'driver_on_trip'
         | 'driver_slot_occupied'
         | 'invalid_expiry'
+        | 'invite_already_issued'
         | 'INVITE_EXPIRED'
         | 'INVITE_ALREADY_REDEEMED'
         | 'INVITE_REVOKED'

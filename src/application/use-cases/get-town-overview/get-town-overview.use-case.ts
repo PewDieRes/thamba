@@ -16,20 +16,23 @@ export class GetTownOverview {
   execute(input: unknown) {
     const { unitOfWork, clock } = this.ports;
     return validateInput(this.schema, input, ({ slug }) =>
-      unitOfWork.run(async (tx) => {
-        const record = (await tx.towns.findBySlug(slug))?.value;
-        if (!record) return err({ code: 'not_found' });
-        const { town, name, grievanceContact } = record;
-        const chart = (await tx.fareCharts.get(town.townId))?.value;
-        return ok({
-          townId: town.townId,
-          name,
-          slug,
-          grievanceContact,
-          capability: evaluateBookingCapability(town, clock.now()),
-          fares: mapFareChart(chart),
-        });
-      }),
+      unitOfWork.run(
+        async (tx) => {
+          const record = (await tx.towns.findBySlug(slug))?.value;
+          if (!record) return err({ code: 'not_found' });
+          const { town, name, grievanceContact } = record;
+          const chart = (await tx.fareCharts.get(town.townId))?.value;
+          return ok({
+            townId: town.townId,
+            name,
+            slug,
+            grievanceContact,
+            capability: evaluateBookingCapability(town, clock.now()),
+            fares: mapFareChart(chart),
+          });
+        },
+        { target: { kind: 'catalog', slug } },
+      ),
     );
   }
 }

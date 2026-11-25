@@ -36,3 +36,14 @@ const transitions: Readonly<
 export function getBookingTransition(status: BookingStatus, command: BookingCommand) {
   return transitions[status][command];
 }
+
+export const ACTIVE_BOOKING_STATUSES = [
+  'scheduled',
+  'requested',
+  'offering',
+  'accepted',
+  'driver_arrived',
+  'in_trip',
+] as const satisfies readonly BookingStatus[];
+
+export const MAX_ACTIVE_BOOKINGS_PER_RIDER = 2;

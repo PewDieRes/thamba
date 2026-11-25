@@ -1,5 +1,6 @@
 import type { InputSchema } from '@application/contracts/input-schema';
-import { validateInput } from '@application/contracts/input-schema';
+import { validateActorInput } from '@application/operations/validate-actor-input';
+import type { ActorContext, CoordinatorMembership } from '@application/ports/actor-context';
 import { getScope, sameScope } from '@application/operations/booking-authority';
 import { getStandDriver, hasDriverSlot } from '@application/operations/driver-roster';
 import { commit, type CommandExecutor } from '@application/operations/execute-command';
@@ -18,17 +19,30 @@ import type { RevokeDriverDeviceInput } from './revoke-driver-device.input';
 
 export class RevokeDriverDevice {
   constructor(
-    private readonly ports: { commands: CommandExecutor; clock: Clock; ids: IdGenerator },
+    private readonly ports: {
+      actorContext: ActorContext;
+      commands: CommandExecutor;
+      clock: Clock;
+      ids: IdGenerator;
+    },
     private readonly schema: InputSchema<RevokeDriverDeviceInput>,
   ) {}
 
   execute(input: unknown) {
     const { commands, clock, ids } = this.ports;
-    return validateInput(this.schema, input, (value) =>
-      commands.run(
-        { actor: `coordinator:${value.coordinatorId}`, name: 'revoke_driver_device', input: value },
-        (tx) => revokeBinding(tx, value, { ids, now: clock.now() }),
-      ),
+    return validateActorInput(
+      { actorContext: this.ports.actorContext, role: 'coordinator', schema: this.schema },
+      input,
+      (value, membership) =>
+        commands.run(
+          {
+            actor: `coordinator:${value.coordinatorId}`,
+            name: 'revoke_driver_device',
+            target: { kind: 'stand', standId: value.standId },
+            input: value,
+          },
+          (tx) => revokeBinding(tx, value, { membership, ids, now: clock.now() }),
+        ),
     );
   }
 }
@@ -36,10 +50,16 @@ export class RevokeDriverDevice {
 async function revokeBinding(
   tx: Transaction,
   { driverId, standId, coordinatorId }: RevokeDriverDeviceInput,
-  { ids, now }: { ids: IdGenerator; now: Instant },
+  {
+    ids,
+    now,
+    membership,
+  }: { ids: IdGenerator; now: Instant; membership: CoordinatorMembership | undefined },
 ) {
   const roster = await getStandDriver(tx, driverId, standId);
   if (!roster.ok) return roster;
+  if (!membership || !sameScope(membership, roster.value.stand))
+    return err({ code: 'forbidden' as const });
   const current = await tx.devices.findActiveByDriver(driverId);
   if (!current) return err({ code: 'not_found' as const });
   if (await hasDriverSlot(tx, driverId)) return err({ code: 'driver_slot_occupied' as const });
