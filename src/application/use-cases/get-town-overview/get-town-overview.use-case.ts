@@ -1,3 +1,4 @@
+import type { TownOverviewView } from '@application/contracts/town-overview-view';
 import type { InputSchema } from '@application/contracts/input-schema';
 import { validateInput } from '@application/contracts/input-schema';
 import { mapFareChart } from '@application/operations/booking.mapper';
@@ -22,11 +23,16 @@ export class GetTownOverview {
           if (!record) return err({ code: 'not_found' });
           const { town, name, grievanceContact } = record;
           const chart = (await tx.fareCharts.get(town.townId))?.value;
-          return ok({
+          return ok<TownOverviewView>({
             townId: town.townId,
             name,
             slug,
             grievanceContact,
+            names: record.names ?? {},
+            grievanceContacts: record.grievanceContacts ?? {},
+            stands: record.stands ?? [],
+            landmarks: record.landmarks ?? [],
+            hasIllustrativeFares: chart?.isIllustrative ?? false,
             capability: evaluateBookingCapability(town, clock.now()),
             fares: mapFareChart(chart),
           });

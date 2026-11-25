@@ -8,12 +8,13 @@ type RouteFareRow = RouteRow &
 export type FareChartRow = Pick<
   Tables<'fare_charts'>,
   'town_id' | 'chart_version' | 'night_start_minute' | 'night_end_minute' | 'version'
-> & { route_fares: RouteFareRow[] };
+> & { route_fares: RouteFareRow[]; is_illustrative?: boolean };
 
 export function fromFareChartRow(row: FareChartRow, domain: DomainValues) {
   return versioned<FareChart>(row, {
     townId: row.town_id as FareChart['townId'],
     version: row.chart_version,
+    ...(row.is_illustrative ? { isIllustrative: true } : {}),
     nightWindow: {
       startMinuteOfDay: row.night_start_minute,
       endMinuteOfDay: row.night_end_minute,
@@ -30,6 +31,7 @@ export function toFareChartRow(value: FareChart): Omit<FareChartRow, 'version'> 
   return {
     town_id: value.townId,
     chart_version: value.version,
+    ...(value.isIllustrative === undefined ? {} : { is_illustrative: value.isIllustrative }),
     night_start_minute: value.nightWindow.startMinuteOfDay,
     night_end_minute: value.nightWindow.endMinuteOfDay,
     route_fares: value.routes.map(({ route, fare, nightFare }) => ({

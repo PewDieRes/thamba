@@ -1,12 +1,13 @@
-import type { ScopedQueueEntry } from '@application/ports/driver-queue-repository';
+import type { ScopedQueueEntry, SimulationSteps } from '@application/ports/driver-queue-repository';
 import type { OnlineDriverQueueEntry } from '@domain/dispatch/driver-queue-entry';
-import type { Tables } from './database.types';
+import type { Json, Tables } from './database.types';
+import { z } from 'zod';
 import { mapOptional, readScope, versioned, writeRunScope } from './row.mapper';
 
 export type DriverQueueRow = Pick<
   Tables<'driver_slots'>,
   'driver_id' | 'stand_id' | 'town_id' | 'run_scope_id' | 'pending_offer_id' | 'version'
-> & { queued_at_epoch_microseconds: string | null };
+> & { queued_at_epoch_microseconds: string | null; simulation_steps?: Json };
 
 export function fromDriverQueueRow(row: DriverQueueRow) {
   const identity = {
@@ -15,6 +16,7 @@ export function fromDriverQueueRow(row: DriverQueueRow) {
   };
   return versioned<ScopedQueueEntry>(row, {
     ...readScope(row.town_id, row.run_scope_id),
+    ...mapOptional('simulationSteps', readSimulationSteps(row.simulation_steps)),
     entry:
       row.queued_at_epoch_microseconds === null
         ? { ...identity, availability: 'offline' }
@@ -40,4 +42,19 @@ export function toDriverQueueRow(value: ScopedQueueEntry): Omit<DriverQueueRow, 
       entry.availability === 'online' ? entry.queuedAt.toString() : null,
     pending_offer_id: entry.availability === 'online' ? (entry.reservation ?? null) : null,
   };
+}
+
+const stepSchema = z.array(
+  z.object({
+    action: z.enum(['accept', 'arrive', 'start', 'complete', 'decline']),
+    delay_seconds: z.int().nonnegative(),
+  }),
+);
+
+function readSimulationSteps(value: Json | undefined): SimulationSteps | undefined {
+  const parsed = stepSchema.safeParse(value);
+  if (!parsed.success || parsed.data.length === 0) return undefined;
+  return Object.fromEntries(
+    parsed.data.map(({ action, delay_seconds }) => [action, delay_seconds]),
+  );
 }

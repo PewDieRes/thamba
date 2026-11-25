@@ -1,7 +1,14 @@
 import type { TownRecord } from '@application/ports/town-repository';
 import type { BookingMode } from '@domain/town/town';
 import type { Licence } from '@domain/town/licence';
-import type { Tables } from './database.types';
+import {
+  readCatalogueStand,
+  readLandmark,
+  readTranslations,
+  type CatalogueLandmarkRow,
+  type CatalogueStandRow,
+} from './catalogue.mapper';
+import type { Json, Tables } from './database.types';
 import type { DomainValues } from './domain-values';
 import { mapOptional, unpack, versioned } from './row.mapper';
 
@@ -33,7 +40,15 @@ export type TownRow = Pick<
   | 'offer_timeout_milliseconds'
   | 'max_search_stands'
   | 'version'
-> & { licence: LicenceRow | null; has_simulation_profile: boolean; demo_runs: DemoRunRow[] };
+> & {
+  licence: LicenceRow | null;
+  has_simulation_profile: boolean;
+  demo_runs: DemoRunRow[];
+  name_translations?: Json;
+  grievance_contact_translations?: Json;
+  catalogue_landmarks?: CatalogueLandmarkRow[];
+  catalogue_stands?: CatalogueStandRow[];
+};
 
 function readLicence(row: LicenceRow | null, domain: DomainValues) {
   if (!row) return undefined;
@@ -65,6 +80,15 @@ export function fromTownRow(row: TownRow, domain: DomainValues) {
     slug: row.slug,
     name: row.name,
     grievanceContact: row.grievance_contact,
+    ...readTownTranslations(row),
+    ...mapOptional(
+      'landmarks',
+      row.catalogue_landmarks?.length ? row.catalogue_landmarks.map(readLandmark) : undefined,
+    ),
+    ...mapOptional(
+      'stands',
+      row.catalogue_stands?.length ? row.catalogue_stands.map(readCatalogueStand) : undefined,
+    ),
     demoRuns: row.demo_runs.map(({ id, rider_user_id }) => ({
       demoRunId: id as DemoRun['demoRunId'],
       riderId: rider_user_id as DemoRun['riderId'],
@@ -97,7 +121,9 @@ function writeLicence(licence: Licence | undefined): LicenceRow | null {
   };
 }
 
-export function toTownRow(value: TownRecord): Omit<TownRow, 'version'> {
+export function toTownRow(
+  value: TownRecord,
+): Omit<TownRow, 'version' | 'catalogue_landmarks' | 'catalogue_stands'> {
   return {
     id: value.town.townId,
     slug: value.slug,
@@ -114,5 +140,17 @@ export function toTownRow(value: TownRecord): Omit<TownRow, 'version'> {
     dispatch_duration_milliseconds: value.dispatchDuration?.milliseconds ?? null,
     offer_timeout_milliseconds: value.offerTimeout?.milliseconds ?? null,
     max_search_stands: value.maxSearchStands ?? null,
+  };
+}
+
+function readTownTranslations(row: TownRow) {
+  const names = readTranslations(row.name_translations);
+  const grievanceContacts = readTranslations(row.grievance_contact_translations);
+  return {
+    ...mapOptional('names', Object.keys(names).length ? names : undefined),
+    ...mapOptional(
+      'grievanceContacts',
+      Object.keys(grievanceContacts).length ? grievanceContacts : undefined,
+    ),
   };
 }

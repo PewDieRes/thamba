@@ -19,6 +19,7 @@ export interface NightWindow {
 }
 
 export interface FareChart {
+  readonly isIllustrative?: boolean;
   readonly townId: TownId;
   readonly version: number;
   readonly routes: readonly RouteFare[];
