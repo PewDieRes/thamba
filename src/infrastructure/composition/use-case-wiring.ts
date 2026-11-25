@@ -6,6 +6,7 @@ import { StartAnonymousSession } from '@application/use-cases/start-anonymous-se
 import { createStartAnonymousSessionSchema } from '@application/use-cases/start-anonymous-session/start-anonymous-session.input';
 import { StartDemoRun } from '@application/use-cases/start-demo-run/start-demo-run.use-case';
 import { createStartDemoRunSchema } from '@application/use-cases/start-demo-run/start-demo-run.input';
+import type { AuthSession } from '@application/ports/auth-session';
 import type { DemoRunProvisioner } from '@application/ports/demo-run-provisioner';
 import { CoordinatorSignIn } from '@application/use-cases/coordinator-sign-in/coordinator-sign-in.use-case';
 import { createCoordinatorSignInSchema } from '@application/use-cases/coordinator-sign-in/coordinator-sign-in.input';
@@ -62,6 +63,7 @@ import { zodInputSchema } from './zod-input-schema';
 export interface ContainerPorts extends CommandDependencies {
   readonly matchedRiderContacts: MatchedRiderContactReader;
   readonly demoRuns: DemoRunProvisioner;
+  readonly demoSession?: Pick<AuthSession, 'ensureAnonymous'>;
   readonly riderBookings: RiderBookingReader;
   readonly riderDispatchAdvancer?: DispatchAdvancer;
   readonly dueBookings: DueBookings;

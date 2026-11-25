@@ -7,6 +7,10 @@ export class InMemoryUnitOfWork implements UnitOfWork {
 
   constructor(private readonly createTransaction: (store: MemoryStore) => Transaction) {}
 
+  readSnapshot() {
+    return this.#store;
+  }
+
   listBookings() {
     return this.#store.tables.bookings.list().map(({ value }) => value);
   }
