@@ -1,3 +1,4 @@
+import { parseLocaleCode } from '@domain/shared/locale-code.value-object';
 import {
   createDriverId,
   createStandCoordinatorId,
@@ -8,6 +9,7 @@ import type { InputOf, InputSchemaFactory } from '@application/contracts/input-s
 
 export function createIssueDriverInviteSchema(schema: InputSchemaFactory) {
   return schema.object({
+    locale: schema.optional(schema.validated(parseLocaleCode)),
     coordinatorId: schema.validated(createStandCoordinatorId),
     standId: schema.validated(createStandId),
     driverId: schema.validated(createDriverId),

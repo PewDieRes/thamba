@@ -1,6 +1,7 @@
 import type { InputSchema } from '@application/contracts/input-schema';
-import { validateInput } from '@application/contracts/input-schema';
-import { canBookTown, getScope } from '@application/operations/booking-authority';
+import { validateActorInput } from '@application/operations/validate-actor-input';
+import type { ActorContext, CoordinatorMembership } from '@application/ports/actor-context';
+import { canBookTown, getScope, sameScope } from '@application/operations/booking-authority';
 import { getStandDriver, hasDriverSlot } from '@application/operations/driver-roster';
 import { commit, type CommandExecutor } from '@application/operations/execute-command';
 import { appendEvents } from '@application/operations/record-events';
@@ -18,6 +19,7 @@ import type { IssueDriverInviteInput } from './issue-driver-invite.input';
 const INVITE_TTL_MILLISECONDS = 900_000;
 
 interface InviteDependencies {
+  readonly actorContext: ActorContext;
   readonly commands: CommandExecutor;
   readonly clock: Clock;
   readonly ids: IdGenerator;
@@ -33,20 +35,38 @@ export class IssueDriverInvite {
 
   execute(input: unknown) {
     const { commands, clock, ids, hasher, tokens } = this.ports;
-    return validateInput(this.schema, input, async (value) => {
-      const actor = `coordinator:${value.coordinatorId}`;
-      // The persisted command identity and verified input recover the token without storing it.
-      const token = tokens.derive(
-        JSON.stringify([actor, value.commandKey, value.standId, value.driverId]),
-      );
-      const tokenHash = createInviteTokenHash(hasher.hash(token));
-      if (!tokenHash.ok) return err({ code: 'inconsistent_state' });
-      const result = await commands.run(
-        { actor, name: 'issue_driver_invite', input: value },
-        (tx) => issueInvite(tx, value, { tokenHash: tokenHash.value, now: clock.now(), ids }),
-      );
-      return result.ok ? ok({ ...result.value, token }) : result;
-    });
+    return validateActorInput(
+      { actorContext: this.ports.actorContext, role: 'coordinator', schema: this.schema },
+      input,
+      async (value, membership) => {
+        const actor = `coordinator:${value.coordinatorId}`;
+        // Derivation keeps the raw token out of the invite and command records.
+        const token = tokens.derive(
+          JSON.stringify([actor, value.commandKey, value.standId, value.driverId]),
+        );
+        const tokenHash = createInviteTokenHash(hasher.hash(token));
+        if (!tokenHash.ok) return err({ code: 'inconsistent_state' });
+        const result = await commands.run(
+          {
+            actor,
+            name: 'issue_driver_invite',
+            target: { kind: 'stand', standId: value.standId },
+            input: value,
+            onReplay: () => Promise.resolve(err({ code: 'invite_already_issued' })),
+          },
+          (tx) =>
+            issueInvite(tx, value, {
+              membership,
+              tokenHash: tokenHash.value,
+              now: clock.now(),
+              ids,
+            }),
+        );
+        return result.ok
+          ? ok({ ...result.value, url: `/${value.locale ?? 'mr'}/driver/invite#${token}` })
+          : result;
+      },
+    );
   }
 }
 
@@ -54,10 +74,12 @@ async function issueInvite(
   tx: Transaction,
   { driverId, standId, coordinatorId }: IssueDriverInviteInput,
   {
+    membership,
     now,
     ids,
     tokenHash,
   }: {
+    membership: CoordinatorMembership | undefined;
     now: Instant;
     ids: IdGenerator;
     tokenHash: import('@domain/identity/driver-invite').DriverInvite['tokenHash'];
@@ -65,9 +87,12 @@ async function issueInvite(
 ) {
   const roster = await getStandDriver(tx, driverId, standId);
   if (!roster.ok) return roster;
+  if (!membership || !sameScope(membership, roster.value.stand))
+    return err({ code: 'forbidden' as const });
   const scope = getScope(roster.value.stand);
   const town = (await tx.towns.get(scope.townId))?.value;
-  if (!canBookTown(town, scope, now)) return err({ code: 'booking_unavailable' as const });
+  if (scope.demoRunId === undefined || !canBookTown(town, scope, now))
+    return err({ code: 'booking_unavailable' as const });
   if (await tx.devices.findActiveByDriver(driverId))
     return err({ code: 'driver_already_bound' as const });
   if (await hasDriverSlot(tx, driverId)) return err({ code: 'driver_slot_occupied' as const });

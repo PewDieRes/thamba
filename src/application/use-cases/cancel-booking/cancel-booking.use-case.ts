@@ -1,5 +1,6 @@
 import type { InputSchema } from '@application/contracts/input-schema';
-import { validateInput } from '@application/contracts/input-schema';
+import { validateActorInput } from '@application/operations/validate-actor-input';
+import type { ActorContext } from '@application/ports/actor-context';
 import { mapBookingProgress } from '@application/operations/booking.mapper';
 import { commit, type CommandExecutor } from '@application/operations/execute-command';
 import { progressTrip } from '@application/operations/progress-trip';
@@ -22,6 +23,7 @@ interface CancellationOptions {
 export class CancelBooking {
   constructor(
     private readonly ports: {
+      actorContext: ActorContext;
       commands: CommandExecutor;
       clock: Clock;
       ids: IdGenerator;
@@ -32,14 +34,27 @@ export class CancelBooking {
 
   execute(input: unknown) {
     const { commands, clock, ids, declinePenalty } = this.ports;
-    return validateInput(this.schema, input, (value) => {
-      const { actor } = value;
-      const actorKey =
-        actor.type === 'rider' ? `rider:${actor.riderId}` : `session:${actor.subject}`;
-      return commands.run({ actor: actorKey, name: 'cancel_booking', input: value }, (tx) =>
-        cancelBooking(tx, value, { now: clock.now(), ids, declinePenalty }),
-      );
-    });
+    return validateActorInput(
+      { actorContext: this.ports.actorContext, role: 'cancellation', schema: this.schema },
+      input,
+      async (value) => {
+        const { actor, bookingId } = value;
+        const actorKey =
+          actor.type === 'rider' ? `rider:${actor.riderId}` : `session:${actor.subject}`;
+        return commands.run(
+          {
+            actor: actorKey,
+            name: 'cancel_booking',
+            target: {
+              kind: actor.type === 'rider' ? 'rider_booking' : 'driver_booking',
+              bookingId,
+            },
+            input: value,
+          },
+          (tx) => cancelBooking(tx, value, { now: clock.now(), ids, declinePenalty }),
+        );
+      },
+    );
   }
 }
 

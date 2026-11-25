@@ -1,9 +1,13 @@
 import type { InputSchema } from '@application/contracts/input-schema';
-import { validateInput } from '@application/contracts/input-schema';
+import { validateActorInput } from '@application/operations/validate-actor-input';
+import type { ActorContext } from '@application/ports/actor-context';
 import { sameScope } from '@application/operations/booking-authority';
-import type { Booking } from '@domain/dispatch/booking';
 import type { Instant } from '@domain/shared/instant.value-object';
 import { mapBookingProgress } from '@application/operations/booking.mapper';
+import type {
+  RiderBookingReader,
+  RiderBookingRecord,
+} from '@application/ports/rider-booking-reader';
 import type { Clock } from '@application/ports/clock';
 import type { Transaction, UnitOfWork } from '@application/ports/unit-of-work';
 import { err, ok } from '@domain/shared/result';
@@ -12,28 +16,39 @@ import type { GetBookingStatusForRiderInput } from './get-booking-status-for-rid
 
 export class GetBookingStatusForRider {
   constructor(
-    private readonly ports: { unitOfWork: UnitOfWork; clock: Clock },
+    private readonly ports: {
+      actorContext: ActorContext;
+      unitOfWork: UnitOfWork;
+      riderBookings: RiderBookingReader;
+      clock: Clock;
+    },
     private readonly schema: InputSchema<GetBookingStatusForRiderInput>,
   ) {}
 
   execute(input: unknown) {
     const { unitOfWork, clock } = this.ports;
-    return validateInput(this.schema, input, ({ riderId, bookingId }) =>
-      unitOfWork.run(async (tx) => {
-        const booking = (await tx.bookings.get(bookingId))?.value;
-        if (booking?.state.riderId !== riderId) return err({ code: 'not_found' });
-        return ok(await projectRiderStatus(tx, booking, clock.now()));
-      }),
+    return validateActorInput(
+      { actorContext: this.ports.actorContext, role: 'rider', schema: this.schema },
+      input,
+      async ({ riderId, bookingId }) => {
+        const result = await this.ports.riderBookings.get(bookingId);
+        if (!result.ok) return result;
+        const booking = result.value;
+        if (booking?.riderId !== riderId) return err({ code: 'not_found' });
+        return unitOfWork.run(
+          async (tx) => ok(await projectRiderStatus(tx, booking, clock.now())),
+          { target: { kind: 'rider_booking', bookingId } },
+        );
+      },
     );
   }
 }
 
-async function projectRiderStatus(tx: Transaction, booking: Booking, now: Instant) {
-  const { state } = booking;
+async function projectRiderStatus(tx: Transaction, state: RiderBookingRecord, now: Instant) {
   const town = (await tx.towns.get(state.townId))?.value;
   const coordinatorContact = await getCoordinatorContact(tx.stands, state);
   return {
-    ...mapBookingProgress(booking),
+    ...mapBookingProgress({ state }),
     route: state.fare.route,
     fareInPaise: state.fare.amount.paise,
     fareChartVersion: state.fare.fareChartVersion,
@@ -44,7 +59,7 @@ async function projectRiderStatus(tx: Transaction, booking: Booking, now: Instan
   };
 }
 
-async function getCoordinatorContact(stands: Transaction['stands'], state: Booking['state']) {
+async function getCoordinatorContact(stands: Transaction['stands'], state: RiderBookingRecord) {
   if (state.status !== 'no_driver_found') return undefined;
   const stand = (await stands.get(state.standId))?.value;
   return stand && sameScope(stand, state) ? stand.coordinatorContact : undefined;

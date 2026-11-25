@@ -1,3 +1,4 @@
+import { MAX_ACTIVE_BOOKINGS_PER_RIDER } from '@domain/dispatch/booking-status';
 import { Booking } from '@domain/dispatch/booking';
 import type { StandFallbackPolicy } from '@domain/dispatch/stand-fallback.policy';
 import type { FareQuoteId, RiderId, StandId } from '@domain/shared/ids.value-object';
@@ -41,6 +42,8 @@ export async function confirmRide(
   if (now.isAtOrAfter(quote.expiresAt) || quote.chartVersion !== chart.version) {
     return refreshQuote(tx, context.value, options);
   }
+  if ((await tx.bookings.countActiveByRider(input.riderId)) >= MAX_ACTIVE_BOOKINGS_PER_RIDER)
+    return err({ code: 'active_booking_limit' as const });
   const decision = await decideBooking(tx.stands, context.value, options);
   if (!decision.ok) return decision;
   const saved = await saveBookingDecision(tx, decision.value, { expectedVersion: null, ids });

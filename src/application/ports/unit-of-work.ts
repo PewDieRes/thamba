@@ -1,3 +1,4 @@
+import type { RepositoryAccess } from './repository-access';
 import type { ApplicationResult } from './application-result';
 import type { BookingRepository } from './booking-repository';
 import type { CommandLog } from './command-log';
@@ -30,5 +31,6 @@ export interface Transaction {
 export interface UnitOfWork {
   run<T>(
     work: (transaction: Transaction) => Promise<ApplicationResult<T>>,
+    access?: RepositoryAccess,
   ): Promise<ApplicationResult<T>>;
 }

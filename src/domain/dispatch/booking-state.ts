@@ -1,6 +1,12 @@
 import type { DriverSessionError } from '../identity/driver-device';
 import type { DomainError } from '../shared/domain.error';
-import type { BookingId, DriverId, RiderId, RideOfferId, StandId } from '../shared/ids.value-object';
+import type {
+  BookingId,
+  DriverId,
+  RiderId,
+  RideOfferId,
+  StandId,
+} from '../shared/ids.value-object';
 import type { Instant } from '../shared/instant.value-object';
 import type { BookingScope } from '../town/town';
 import type { ActiveTrip } from '../trip/trip';
@@ -60,3 +66,16 @@ export type BookingTransitionError =
       | 'rider_mismatch'
     >
   | DriverSessionError;
+
+export function getBookingDueAt(state: BookingState) {
+  switch (state.status) {
+    case 'scheduled':
+      return state.requestDueAt;
+    case 'requested':
+      return state.requestedAt;
+    case 'offering':
+      return state.offer?.expiresAt;
+    default:
+      return undefined;
+  }
+}

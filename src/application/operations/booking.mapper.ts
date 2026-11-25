@@ -1,9 +1,13 @@
-import type { Booking } from '@domain/dispatch/booking';
+import type { BookingState } from '@domain/dispatch/booking-state';
 import type { FareChart } from '@domain/fares/fare-chart';
 import type { FareQuoteView } from '../contracts/fare-quote-view';
 import type { StoredFareQuote } from '../ports/fare-quote-repository';
 
-export function mapBookingProgress({ state }: Booking) {
+export function mapBookingProgress({
+  state,
+}: {
+  state: Pick<BookingState, 'bookingId' | 'status' | 'noDriverFoundReason'>;
+}) {
   return {
     bookingId: state.bookingId,
     status: state.status,
