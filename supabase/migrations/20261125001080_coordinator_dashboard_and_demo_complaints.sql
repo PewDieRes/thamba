@@ -1,12 +1,28 @@
-create function public.thamba_coordinator_dashboard(
+create or replace view thamba_private.repository_queue with (security_invoker = true) as
+select slot.id, slot.town_id, slot.run_scope_id, slot.stand_id, slot.driver_id,
+  slot.pending_offer_id, slot.active_trip_id, slot.queue_driver_id, slot.queue_version,
+  slot.version, slot.created_at, slot.updated_at, queue.queued_at_epoch_microseconds::text as queued_at_epoch_microseconds,
+  driver.scripted_steps as simulation_steps,
+  case when driver.scripted_steps is not null then driver.name end as demo_driver_name,
+  case when driver.scripted_steps is not null then driver.name_translations end as demo_driver_names,
+  case when driver.scripted_steps is not null then driver.vehicle_number end as demo_vehicle_number,
+  slot.needs_rejoin, driver.is_synthetic
+from public.driver_slots slot
+left join public.driver_queue_entries queue on queue.driver_id = slot.driver_id
+left join public.drivers driver on driver.id = slot.driver_id;
+
+create or replace function public.thamba_coordinator_dashboard(
   subject uuid, target_coordinator uuid, target_stand uuid, target_town uuid, target_run uuid,
   day_start timestamptz, day_end timestamptz
 ) returns jsonb language sql stable security definer set search_path = '' as $$
   with scope as (
-    select s.id, s.town_id, s.run_scope_id, s.name, s.name_translations
+    select s.id, s.town_id, s.run_scope_id, s.name, s.name_translations,
+      town.booking_mode, run.id is not null as is_in_demo_run,
+      exists (select from public.simulation_profiles profile where profile.town_id = s.town_id) as has_simulation_profile
     from public.coordinators c
     join auth.users account on account.id = c.coordinator_user_id and not account.is_anonymous
     join public.stands s on (s.town_id, s.run_scope_id, s.id) = (c.town_id, c.run_scope_id, c.stand_id)
+    join public.towns town on town.id = s.town_id
     left join public.demo_runs run on (run.town_id, run.id) = (s.town_id, s.demo_run_id)
     where c.id = target_coordinator and c.coordinator_user_id = subject and c.status = 'active'
       and s.id = target_stand and s.town_id = target_town
@@ -18,9 +34,9 @@ create function public.thamba_coordinator_dashboard(
       case when slot.active_trip_id is not null then 'on_trip'
         when queue.reserved_offer_id is not null then 'reserved'
         when queue.driver_id is not null then 'online' else 'offline' end as availability,
-      d.is_synthetic and target_run is not null and device.id is null
-        and slot.driver_id is not null and slot.active_trip_id is null
-        and slot.pending_offer_id is null as can_invite,
+      d.is_synthetic, slot.driver_id is not null as has_slot,
+      slot.pending_offer_id is not null as has_pending_offer,
+      slot.active_trip_id is not null as has_active_trip,
       (select count(*) from public.trips t where t.driver_id = d.id
         and t.status = 'completed' and t.ended_at >= day_start and t.ended_at < day_end) as trips_today
     from scope s
@@ -44,10 +60,17 @@ create function public.thamba_coordinator_dashboard(
   )
   select jsonb_build_object(
     'stand', jsonb_build_object('id', s.id, 'name', s.name, 'names', s.name_translations),
+    'inviteScope', jsonb_build_object(
+      'bookingMode', s.booking_mode, 'hasSimulationProfile', s.has_simulation_profile,
+      'isInDemoRun', s.is_in_demo_run
+    ),
     'drivers', coalesce((select jsonb_agg(jsonb_build_object(
       'driverId', id, 'name', name, 'names', name_translations, 'vehicleNumber', vehicle_number,
       'queuedAt', queued_at_epoch_microseconds::text, 'availability', availability,
-      'tripsToday', trips_today, 'hasDevice', has_device, 'canInvite', can_invite
+      'tripsToday', trips_today, 'inviteFacts', jsonb_build_object(
+        'isSynthetic', is_synthetic, 'hasSlot', has_slot, 'hasDevice', has_device,
+        'hasPendingOffer', has_pending_offer, 'hasActiveTrip', has_active_trip
+      )
     ) order by name, id) from driver_rows), '[]'::jsonb),
     'bookings', coalesce((select jsonb_agg(jsonb_build_object(
       'bookingId', id, 'status', status, 'fareInPaise', fare_in_paise,

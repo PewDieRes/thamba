@@ -1,16 +1,18 @@
 import type { InputSchema } from '@application/contracts/input-schema';
 import { validateActorInput } from '@application/operations/validate-actor-input';
 import type { ActorContext, CoordinatorMembership } from '@application/ports/actor-context';
-import { canBookTown, getScope, sameScope } from '@application/operations/booking-authority';
-import { getStandDriver, hasDriverSlot } from '@application/operations/driver-roster';
+import { getScope, sameScope } from '@application/operations/booking-authority';
+import { getStandDriver } from '@application/operations/driver-roster';
 import { commit, type CommandExecutor } from '@application/operations/execute-command';
 import { appendEvents } from '@application/operations/record-events';
 import type { Clock } from '@application/ports/clock';
 import type { CommandHasher } from '@application/ports/command-hasher';
 import type { IdGenerator } from '@application/ports/id-generator';
 import type { InviteTokenGenerator } from '@application/ports/invite-token-generator';
+import type { ScopedQueueEntry } from '@application/ports/driver-queue-repository';
 import type { ScopedDriverInvite } from '@application/ports/driver-invite-repository';
 import type { Transaction } from '@application/ports/unit-of-work';
+import { canIssueInvite } from '@domain/identity/driver-invite-eligibility';
 import { createInviteTokenHash } from '@domain/identity/driver-invite';
 import { Instant } from '@domain/shared/instant.value-object';
 import { err, ok } from '@domain/shared/result';
@@ -90,16 +92,35 @@ async function issueInvite(
   if (!membership || !sameScope(membership, roster.value.stand))
     return err({ code: 'forbidden' as const });
   const scope = getScope(roster.value.stand);
-  const town = (await tx.towns.get(scope.townId))?.value;
-  if (scope.demoRunId === undefined || !canBookTown(town, scope, now))
-    return err({ code: 'booking_unavailable' as const });
-  if (await tx.devices.findActiveByDriver(driverId))
-    return err({ code: 'driver_already_bound' as const });
-  if (await hasDriverSlot(tx, driverId)) return err({ code: 'driver_slot_occupied' as const });
+  const eligibility = await checkInviteEligibility(tx, roster.value.queue.value);
+  if (!eligibility.ok) return eligibility;
   const expiresAt = Instant.fromEpochMilliseconds(now.epochMilliseconds + INVITE_TTL_MILLISECONDS);
   if (!expiresAt.ok) return err({ code: 'invalid_expiry' as const });
   const invite = { driverId, tokenHash, status: 'issued' as const, expiresAt: expiresAt.value };
   return saveInvite(tx, { ...scope, standId, invite }, { coordinatorId, now, ids });
+}
+
+async function checkInviteEligibility(
+  tx: Transaction,
+  { townId, demoRunId, isSynthetic, entry: { driverId } }: ScopedQueueEntry,
+) {
+  const [record, device, offer, trip] = await Promise.all([
+    tx.towns.get(townId),
+    tx.devices.findActiveByDriver(driverId),
+    tx.offers.findPendingByDriver(driverId),
+    tx.trips.findActiveByDriver(driverId),
+  ]);
+  const town = record?.value.town;
+  return canIssueInvite({
+    bookingMode: town?.bookingMode ?? null,
+    hasSimulationProfile: town?.simulationProfile !== undefined,
+    isInDemoRun: record?.value.demoRuns.some((run) => run.demoRunId === demoRunId) ?? false,
+    isSynthetic: isSynthetic ?? demoRunId !== undefined,
+    hasSlot: true,
+    hasDevice: device !== undefined,
+    hasPendingOffer: offer !== undefined,
+    hasActiveTrip: trip !== undefined,
+  });
 }
 
 async function saveInvite(

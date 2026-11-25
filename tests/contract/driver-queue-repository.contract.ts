@@ -10,6 +10,7 @@ import {
 
 const offline: ScopedQueueEntry = {
   ...SCOPE,
+  isSynthetic: true,
   entry: { driverId: DRIVER_ONE, standId: STAND, availability: 'offline' },
 };
 

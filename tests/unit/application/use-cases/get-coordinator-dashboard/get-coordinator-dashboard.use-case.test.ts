@@ -36,8 +36,13 @@ const driver = {
   vehicleNumber: 'DEMO 01',
   availability: 'online',
   tripsToday: 0,
-  hasDevice: false,
-  canInvite: true,
+  inviteFacts: {
+    isSynthetic: true,
+    hasSlot: true,
+    hasDevice: false,
+    hasPendingOffer: false,
+    hasActiveTrip: false,
+  },
 } as const;
 
 function setup(actor: SessionActor | undefined = coordinator) {
@@ -61,6 +66,7 @@ test('reads only the selected membership and returns queue positions, live booki
     value: {
       stand: { id: STAND, name: 'Demo Stand', names: {} },
       bookings: [booking, logEntry],
+      inviteScope: { bookingMode: 'simulated', hasSimulationProfile: true, isInDemoRun: true },
       drivers: [driver],
       changes: [],
     },
@@ -70,7 +76,7 @@ test('reads only the selected membership and returns queue positions, live booki
     value: {
       standIds: [STAND],
       dashboard: {
-        drivers: [{ driverId: DRIVER_ONE, position: 1 }],
+        drivers: [{ driverId: DRIVER_ONE, position: 1, hasDevice: false, canInvite: true }],
         liveBookings: [booking],
         rides: [logEntry],
       },

@@ -14,6 +14,8 @@ export interface DemoDriver {
 }
 
 export interface ScopedQueueEntry extends BookingScope {
+  // Older queue entries carry the synthetic fact through their Demo Run scope.
+  readonly isSynthetic?: boolean;
   readonly needsRejoin?: true;
   readonly demoDriver?: DemoDriver;
   readonly simulationSteps?: SimulationSteps;

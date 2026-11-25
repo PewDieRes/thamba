@@ -9,6 +9,7 @@ export type DriverQueueRow = Pick<
   Tables<'driver_slots'>,
   'driver_id' | 'stand_id' | 'town_id' | 'run_scope_id' | 'pending_offer_id' | 'version'
 > & {
+  is_synthetic?: Tables<'drivers'>['is_synthetic'];
   needs_rejoin?: Tables<'driver_slots'>['needs_rejoin'];
   queued_at_epoch_microseconds: string | null;
   simulation_steps?: Json;
@@ -24,6 +25,7 @@ export function fromDriverQueueRow(row: DriverQueueRow) {
   };
   return versioned<ScopedQueueEntry>(row, {
     ...readScope(row.town_id, row.run_scope_id),
+    ...mapOptional('isSynthetic', row.is_synthetic),
     ...(row.needs_rejoin ? { needsRejoin: true } : {}),
     ...mapOptional('simulationSteps', readSimulationSteps(row.simulation_steps)),
     ...mapOptional('demoDriver', readDemoDriver(row)),
