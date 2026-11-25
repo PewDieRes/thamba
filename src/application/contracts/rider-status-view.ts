@@ -1,3 +1,4 @@
+import type { DemoRunId, TownId } from '@domain/shared/ids.value-object';
 import type { BookingState } from '@domain/dispatch/booking-state';
 import type { TownOverviewView, Translations } from './town-overview-view';
 
@@ -10,6 +11,7 @@ export interface MatchedDriverView {
 
 export interface RiderStatusView {
   readonly status: BookingState['status'];
+  readonly demoRun?: { readonly demoRunId: DemoRunId; readonly townId: TownId };
   readonly noDriverFoundReason?: BookingState['noDriverFoundReason'];
   readonly grievanceContact?: string | undefined;
   readonly grievanceContacts?: Translations | undefined;

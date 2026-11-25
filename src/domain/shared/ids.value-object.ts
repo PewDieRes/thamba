@@ -9,6 +9,7 @@ export type Id<Kind extends string> = string & { readonly [ID_BRAND]: Kind };
 
 export type TownId = Id<'Town'>;
 export type DemoRunId = Id<'DemoRun'>;
+export type ComplaintId = Id<'Complaint'>;
 export type RiderId = Id<'Rider'>;
 export type SessionSubject = Id<'SessionSubject'>;
 export type RouteId = Id<'Route'>;
@@ -84,5 +85,9 @@ export function createSessionSubject(input: unknown): Result<SessionSubject, IdE
 }
 
 export function createFareQuoteId(input: unknown): Result<FareQuoteId, IdError> {
+  return createId(input);
+}
+
+export function createComplaintId(input: unknown): Result<ComplaintId, IdError> {
   return createId(input);
 }

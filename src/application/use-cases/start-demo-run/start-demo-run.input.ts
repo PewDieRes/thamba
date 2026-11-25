@@ -5,6 +5,9 @@ export function createStartDemoRunSchema(schema: InputSchemaFactory) {
   return schema.object({
     townId: schema.validated(createTownId),
     standId: schema.validated(createStandId),
+    scenario: schema.optional(
+      schema.union(schema.literal('successful_trip'), schema.literal('queue_exhaustion')),
+    ),
     riderId: schema.validated(createRiderId),
   });
 }

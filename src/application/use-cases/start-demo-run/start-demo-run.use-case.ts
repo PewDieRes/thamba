@@ -1,5 +1,6 @@
 import type { InputSchema } from '@application/contracts/input-schema';
 import { validateActorInput } from '@application/operations/validate-actor-input';
+import type { AuthSession } from '@application/ports/auth-session';
 import type { ActorContext } from '@application/ports/actor-context';
 import type { Clock } from '@application/ports/clock';
 import type { DemoRunProvisioner } from '@application/ports/demo-run-provisioner';
@@ -14,6 +15,7 @@ export class StartDemoRun {
   constructor(
     private readonly ports: {
       actorContext: ActorContext;
+      demoSession?: Pick<AuthSession, 'ensureAnonymous'>;
       unitOfWork: UnitOfWork;
       clock: Clock;
       ids: IdGenerator;
@@ -22,8 +24,10 @@ export class StartDemoRun {
     private readonly schema: InputSchema<StartDemoRunInput>,
   ) {}
 
-  execute(input: unknown) {
-    const { actorContext, unitOfWork, clock, ids, demoRuns } = this.ports;
+  async execute(input: unknown) {
+    const { actorContext, unitOfWork, clock, ids, demoRuns, demoSession } = this.ports;
+    const authenticated = await demoSession?.ensureAnonymous();
+    if (authenticated && !authenticated.ok) return authenticated;
     return validateActorInput(
       { actorContext, role: 'rider', schema: this.schema },
       input,
@@ -46,7 +50,7 @@ export class StartDemoRun {
         );
         if (!template.ok) return template;
         const scope = { demoRunId: ids.next<'DemoRun'>(), standId: ids.next<'Stand'>(), townId };
-        const fixtures = buildDemoRun('successful_trip', {
+        const fixtures = buildDemoRun(value.scenario ?? 'successful_trip', {
           ...scope,
           riderId,
           templateStand: template.value,

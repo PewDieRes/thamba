@@ -64,6 +64,9 @@ async function projectRiderStatus(tx: Transaction, state: RiderBookingRecord, no
   const { grievanceContact, grievanceContacts } = town ?? {};
   const view: RiderStatusView = {
     ...mapBookingProgress({ state }),
+    ...(state.demoRunId === undefined
+      ? {}
+      : { demoRun: { demoRunId: state.demoRunId, townId: state.townId } }),
     grievanceContact,
     grievanceContacts,
     capability: town && evaluateBookingCapability(town.town, now),

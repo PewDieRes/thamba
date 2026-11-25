@@ -7,7 +7,9 @@ export class FairRotationPolicy implements DriverRankingPolicy {
   }
 }
 
-function compareQueueEntries(left: OnlineDriverQueueEntry, right: OnlineDriverQueueEntry): number {
+type RankedEntry = Pick<OnlineDriverQueueEntry, 'driverId' | 'queuedAt'>;
+
+export function compareQueueEntries(left: RankedEntry, right: RankedEntry): number {
   if (left.queuedAt < right.queuedAt) return -1;
   if (left.queuedAt > right.queuedAt) return 1;
   if (left.driverId < right.driverId) return -1;
