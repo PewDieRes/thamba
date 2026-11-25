@@ -59,6 +59,26 @@ test('a Rider projection storage failure cannot trigger dispatch', async () => {
   expect(execute).not.toHaveBeenCalled();
 });
 
+test('omits private Rider contact from the Rider status payload', async () => {
+  const riderPhone = '+919000000001';
+  const projection: { record?: RiderBookingRecord } = {};
+  const app = await createDemo({
+    riderBookings: { get: () => Promise.resolve(ok(projection.record)) },
+  });
+  const { bookingId } = await requestRide(app);
+  const saved = unwrap(
+    await app.unitOfWork.run(async ({ bookings }) => ok(await bookings.get(bookingId))),
+  );
+  if (!saved) throw new Error('Missing saved Booking');
+  const recordWithPrivateContact = { ...saved.value.state, riderPhone };
+  projection.record = recordWithPrivateContact;
+
+  const payload = unwrap(
+    await app.getBookingStatusForRider.execute({ bookingId, riderId: quoteInput.riderId }),
+  );
+  expect(JSON.stringify(payload)).not.toContain(riderPhone);
+});
+
 test('keeps a saved Booking visible when its Town or Stand catalogue cannot be projected', async () => {
   const projection: { record?: RiderBookingRecord } = {};
   const app = await createDemo({

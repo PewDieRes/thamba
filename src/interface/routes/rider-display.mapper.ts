@@ -7,15 +7,27 @@ import type { RiderCopy } from '../ui/rider/rider-copy';
 
 const PAISE_PER_RUPEE = 100;
 const LOCAL_TIME_ZONE = 'Asia/Kolkata';
-const PHONE_TEXT = /(?:\p{Nd}[\s()\-./]*){7,}/u;
+const PHONE_SEPARATORS = /[\s().-]/gu;
+const DIALABLE_NUMBER = /^\+?[0-9]{3,15}$/u;
 
 export function localizeText(locale: Locale, name: string, names?: Translations) {
   return names?.[locale] ?? name;
 }
 
-export function localizeContact(locale: Locale, fallback?: string, translations?: Translations) {
-  const contact = translations?.[locale] ?? fallback;
-  return contact && !PHONE_TEXT.test(contact) ? contact : undefined;
+export function localizeConfiguredContact(
+  locale: Locale,
+  fallback?: string,
+  translations?: Translations,
+) {
+  return (translations?.[locale] ?? fallback) || undefined;
+}
+
+export function mapCoordinatorContact(contact: string | undefined, unavailable: string) {
+  const number = contact?.replace(PHONE_SEPARATORS, '');
+  return {
+    text: contact ?? unavailable,
+    callHref: number && DIALABLE_NUMBER.test(number) ? `tel:${number}` : undefined,
+  };
 }
 
 export function formatFare(locale: Locale, fareInPaise: number) {
@@ -51,7 +63,7 @@ export function getAvailabilityCopy(copy: RiderCopy, capability?: TownOverviewVi
 export function mapTownNotices(town: TownOverviewView, locale: Locale) {
   return {
     capability: town.capability,
-    grievance: localizeContact(locale, town.grievanceContact, town.grievanceContacts),
+    grievance: localizeConfiguredContact(locale, town.grievanceContact, town.grievanceContacts),
     isIllustrative:
       town.hasIllustrativeFares || town.landmarks.some((landmark) => landmark.isIllustrative),
   };

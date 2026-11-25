@@ -1,10 +1,11 @@
+import { CoordinatorContact, type CoordinatorContactDetails } from './coordinator-contact';
 import type { RiderCopy } from './rider-copy';
 
 export interface StatusDetails {
   heading: string;
   stand?: string | undefined;
   pickup?: string | undefined;
-  coordinator?: string | undefined;
+  coordinator?: CoordinatorContactDetails | undefined;
   driver?:
     | {
         firstName: string;
@@ -25,7 +26,7 @@ export function BookingStatus({ copy, details }: { copy: RiderCopy; details: Sta
         {pickup && <p>{pickup}</p>}
         {coordinator && (
           <p>
-            {copy.coordinator} · {coordinator}
+            {copy.coordinator} · <CoordinatorContact {...coordinator} />
           </p>
         )}
         {driver && (

@@ -3,8 +3,9 @@ import type { RiderCopy } from '../ui/rider/rider-copy';
 import {
   formatFare,
   getAvailabilityCopy,
-  localizeContact,
+  localizeConfiguredContact,
   localizeText,
+  mapCoordinatorContact,
   mapTownNotices,
 } from './rider-display.mapper';
 
@@ -25,9 +26,10 @@ export function mapTownOverview(
     stands: town.stands.map((stand) => ({
       id: stand.id,
       name: localizeText(locale, stand.name, stand.names),
-      contact:
-        localizeContact(locale, stand.coordinatorContact, stand.coordinatorContacts) ??
+      contact: mapCoordinatorContact(
+        localizeConfiguredContact(locale, stand.coordinatorContact, stand.coordinatorContacts),
         copy.contactUnavailable,
+      ),
     })),
     fares: mapFares(town, locale),
     notices: mapTownNotices(town, locale),

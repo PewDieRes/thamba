@@ -5,8 +5,9 @@ import type { RiderCopy } from '../ui/rider/rider-copy';
 import {
   formatPickup,
   getAvailabilityCopy,
-  localizeContact,
+  localizeConfiguredContact,
   localizeText,
+  mapCoordinatorContact,
 } from './rider-display.mapper';
 
 const INDIAN_PHONE = /^\+91[6-9]\d{9}$/u;
@@ -57,9 +58,9 @@ export function isTerminalStatus(status: RiderStatusView['status']) {
 
 function displayCoordinator(status: RiderStatusView, locale: Locale, copy: RiderCopy) {
   if (status.status !== 'no_driver_found') return undefined;
-  return (
-    localizeContact(locale, status.coordinatorContact, status.coordinatorContacts) ??
-    copy.contactUnavailable
+  return mapCoordinatorContact(
+    localizeConfiguredContact(locale, status.coordinatorContact, status.coordinatorContacts),
+    copy.contactUnavailable,
   );
 }
 
