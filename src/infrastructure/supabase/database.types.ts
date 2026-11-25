@@ -316,6 +316,7 @@ export type Database = {
       domain_events: {
         Row: {
           booking_id: string | null;
+          commit_order: number;
           created_at: string;
           driver_id: string | null;
           event_type: string;
@@ -330,6 +331,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           booking_id?: string | null;
+          commit_order?: never;
           created_at?: string;
           driver_id?: string | null;
           event_type: string;
@@ -343,6 +345,7 @@ export type Database = {
         };
         Update: {
           booking_id?: string | null;
+          commit_order?: never;
           created_at?: string;
           driver_id?: string | null;
           event_type?: string;
@@ -789,6 +792,7 @@ export type Database = {
           day_fare_in_paise: number;
           id: string;
           night_fare_in_paise: number;
+          position: number;
           route_id: string;
           town_id: string;
           updated_at: string;
@@ -800,6 +804,7 @@ export type Database = {
           day_fare_in_paise: number;
           id?: string;
           night_fare_in_paise: number;
+          position?: number;
           route_id: string;
           town_id: string;
           updated_at?: string;
@@ -810,6 +815,7 @@ export type Database = {
           day_fare_in_paise?: number;
           id?: string;
           night_fare_in_paise?: number;
+          position?: number;
           route_id?: string;
           town_id?: string;
           updated_at?: string;
@@ -1722,7 +1728,15 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      thamba_repository_commit: {
+        Args: { command_scope?: Json; expected_revision?: string; writes: Json };
+        Returns: undefined;
+      };
+      thamba_repository_list: {
+        Args: { expected_revision?: string; filters: Json; resource_name: string };
+        Returns: Json;
+      };
+      thamba_repository_revision: { Args: Record<PropertyKey, never>; Returns: string };
     };
     Enums: {
       [_ in never]: never;

@@ -17,3 +17,8 @@ unkeyed calls for polls and sweeps, which reevaluate the current due work.
 Each advance retries one concurrency conflict using a fresh transaction and
 clock reading. Callers can advance a requested Booking after confirmation,
 decline or withdrawal.
+
+`createConfiguredContainer()` selects the in-memory store under `NODE_ENV=test`
+and Supabase for the server runtime. The server reads `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY`. Integration tests explicitly select Supabase and
+use local credentials from the Supabase CLI.
