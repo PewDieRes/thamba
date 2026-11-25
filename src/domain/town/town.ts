@@ -52,6 +52,10 @@ export class Town {
     Object.freeze(this);
   }
 
+  static restore(input: TownInput, bookingMode: BookingMode): Town {
+    return new Town(input, bookingMode);
+  }
+
   static create(input: TownInput): Town {
     return new Town(input, 'simulated');
   }

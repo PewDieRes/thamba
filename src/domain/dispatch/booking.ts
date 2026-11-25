@@ -53,6 +53,10 @@ export class Booking {
     Object.freeze(this);
   }
 
+  static restore(state: BookingState): Booking {
+    return new Booking(state);
+  }
+
   static schedule(input: ScheduleBookingInput, now: Instant): BookingTransition {
     const confirmed = confirmBooking(input, now);
     if (!confirmed.ok) return confirmed;
