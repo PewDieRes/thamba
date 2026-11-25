@@ -9,7 +9,12 @@ const input = { driver: f.driverSession, pickupCue: 'Wait beside the entrance.' 
 
 it('I2 exposes only offer ID, pickup Landmark, pickup cue and deadline in its type', () => {
   expectTypeOf<keyof PendingOfferView>().toEqualTypeOf<
-    'offerId' | 'pickupLandmarkId' | 'pickupCue' | 'expiresAtEpochMilliseconds'
+    | 'offerId'
+    | 'pickupLandmarkId'
+    | 'pickupCue'
+    | 'expiresAtEpochMilliseconds'
+    | 'serverNow'
+    | 'remainingMilliseconds'
   >();
 });
 
@@ -21,6 +26,8 @@ it('I2 projects only explicitly allowed fields from the private Booking and offe
     pickupLandmarkId: f.route.pickupLandmarkId,
     pickupCue: input.pickupCue,
     expiresAtEpochMilliseconds: f.offer.expiresAt.epochMilliseconds,
+    serverNow: f.at(2).epochMilliseconds,
+    remainingMilliseconds: f.offer.expiresAt.epochMilliseconds - f.at(2).epochMilliseconds,
   });
 });
 

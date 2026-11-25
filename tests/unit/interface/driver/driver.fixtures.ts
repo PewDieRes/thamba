@@ -27,6 +27,8 @@ export const offer: DriverOfferView = {
   pickup: { name: 'River Square' },
   pickupCue: 'By the blue sign',
   expiresAtEpochMilliseconds: NOW_MILLISECONDS + OFFER_DURATION_MILLISECONDS,
+  serverNow: NOW_MILLISECONDS,
+  remainingMilliseconds: OFFER_DURATION_MILLISECONDS,
 };
 
 export const trip: DriverTripView = {

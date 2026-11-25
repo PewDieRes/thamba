@@ -1,3 +1,5 @@
+import { matchedRiderContactReaderContract } from './matched-rider-contact-reader.contract';
+import { createMemoryContactReader } from './matched-rider-contact.fixtures';
 import { demoRunProvisionerContract } from './demo-run-provisioner.contract';
 import { DEMO_TOWN } from '../unit/application/demo-data.fixtures';
 import { unwrap } from '../unit/domain/dispatch/booking.fixtures';
@@ -22,6 +24,7 @@ import { eventLogContract } from './event-log.contract';
 import { unitOfWorkContract } from './unit-of-work.contract';
 
 describe('in-memory adapters', () => {
+  matchedRiderContactReaderContract(createMemoryContactReader);
   bookingRepositoryContract(() => createMemoryTransaction(new MemoryStore()).bookings);
   rideOfferRepositoryContract(() => createMemoryTransaction(new MemoryStore()).offers);
   driverQueueRepositoryContract(() => createMemoryTransaction(new MemoryStore()).drivers);

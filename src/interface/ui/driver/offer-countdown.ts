@@ -2,23 +2,24 @@ import { useEffect, useState } from 'react';
 
 const MILLISECONDS_PER_SECOND = 1_000;
 
-export function useOfferCountdown(expiresAtEpochMilliseconds: number) {
-  const [now, setNow] = useState(Date.now);
+export function useOfferCountdown(deadlineMilliseconds: number) {
+  const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     function tick() {
-      const instant = Date.now();
+      const instant = performance.now();
       setNow(instant);
-      const remaining = expiresAtEpochMilliseconds - instant;
+      const remaining = deadlineMilliseconds - instant;
       if (remaining > 0) {
-        timer = setTimeout(tick, remaining % MILLISECONDS_PER_SECOND || MILLISECONDS_PER_SECOND);
+        const untilNextSecond = remaining % MILLISECONDS_PER_SECOND || MILLISECONDS_PER_SECOND;
+        timer = setTimeout(tick, Math.ceil(untilNextSecond));
       }
     }
     tick();
     return () => {
       clearTimeout(timer);
     };
-  }, [expiresAtEpochMilliseconds]);
+  }, [deadlineMilliseconds]);
 
-  return Math.max(0, Math.ceil((expiresAtEpochMilliseconds - now) / MILLISECONDS_PER_SECOND));
+  return Math.max(0, Math.ceil((deadlineMilliseconds - now) / MILLISECONDS_PER_SECOND));
 }

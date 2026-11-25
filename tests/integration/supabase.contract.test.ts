@@ -1,3 +1,8 @@
+import { matchedRiderContactReaderContract } from '../contract/matched-rider-contact-reader.contract';
+import {
+  cleanContactCoordinators,
+  createPostgresContactReader,
+} from './matched-rider-contact.fixtures';
 import { createConfiguredContainer } from '@infrastructure/composition/container';
 import { demoRunProvisionerContract } from '../contract/demo-run-provisioner.contract';
 import { unwrap } from '../unit/domain/dispatch/booking.fixtures';
@@ -38,11 +43,15 @@ beforeAll(() => {
 
 afterAll(() => {
   dropScopedConnections();
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) cleanContractDatabase();
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    cleanContactCoordinators();
+    cleanContractDatabase();
+  }
 });
 
 describe('Supabase adapters', () => {
   registerRepositoryContracts();
+  matchedRiderContactReaderContract(createPostgresContactReader);
   unitOfWorkContract(async () => (await prepareContractDatabase('unitOfWork')).unitOfWork);
   demoRunProvisionerContract(async () => {
     await prepareContractDatabase('demoRun');

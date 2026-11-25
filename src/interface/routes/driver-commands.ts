@@ -44,10 +44,5 @@ export function useDriverCommands(refresh: () => Promise<void>) {
     setIsBusy(false);
   }
 
-  function markOfferUnavailable(offerId: DriverOfferView['offerId']) {
-    setDismissedOfferId(offerId);
-    setNotice('unavailable');
-  }
-
-  return { isBusy, notice, run, dismissedOfferId, markOfferUnavailable };
+  return { isBusy, notice, run, dismissedOfferId };
 }

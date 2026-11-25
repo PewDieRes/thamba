@@ -1,11 +1,11 @@
-import type { DriverOfferView } from '@application/contracts/driver-state-view';
+import type { ReceivedDriverOffer } from '../../routes/driver-state';
 import type { Locale } from '@application/contracts/town-overview-view';
 import { localizeText } from '../../routes/rider-display.mapper';
 import type { DriverCopy } from './driver-copy';
 import { useOfferCountdown } from './offer-countdown';
 
 interface DriverOfferProps {
-  offer: DriverOfferView;
+  offer: ReceivedDriverOffer;
   copy: DriverCopy;
   locale: Locale;
   isBusy: boolean;
@@ -13,8 +13,14 @@ interface DriverOfferProps {
 }
 
 export function DriverOffer({ offer, copy, locale, isBusy, onRespond }: DriverOfferProps) {
-  const { expiresAtEpochMilliseconds, pickup, pickupCue, pickupCueTranslations } = offer;
-  const seconds = useOfferCountdown(expiresAtEpochMilliseconds);
+  const {
+    receivedAtMilliseconds,
+    remainingMilliseconds,
+    pickup,
+    pickupCue,
+    pickupCueTranslations,
+  } = offer;
+  const seconds = useOfferCountdown(receivedAtMilliseconds + remainingMilliseconds);
   if (seconds === 0) return null;
   return (
     <section className="panel driver-panel driver-offer" aria-labelledby="driver-offer">
