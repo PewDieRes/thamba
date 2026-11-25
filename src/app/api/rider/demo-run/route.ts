@@ -10,7 +10,7 @@ import { createCommandRoute } from '@interface/routes/command-route';
 import { guardRateLimit } from '@interface/routes/route-guards';
 import { z } from 'zod';
 
-const schema = z.strictObject({ townId: z.uuid(), standId: z.uuid() });
+const schema = z.strictObject({ townId: z.guid(), standId: z.guid() });
 
 export async function POST(request: Request) {
   const session = createAuthSession(await getRequestCookies());

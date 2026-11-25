@@ -5,7 +5,7 @@ import { signInCoordinator } from './actions';
 export default async function CoordinatorLoginPage() {
   const t = await getTranslations('coordinator.login');
   return (
-    <main>
+    <>
       <h1>{t('title')}</h1>
       <CoordinatorLoginForm
         action={signInCoordinator}
@@ -18,6 +18,6 @@ export default async function CoordinatorLoginPage() {
           try_later: t('try_later'),
         }}
       />
-    </main>
+    </>
   );
 }

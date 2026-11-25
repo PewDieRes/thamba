@@ -1,3 +1,8 @@
 {
-  "appName": "थांबा"
+  "appName": "थांबा",
+  "skip": "मुख्य सामग्री पर जाएँ",
+  "languages": "भाषा",
+  "chooseTown": "शहर चुनें",
+  "demoTown": "डेमो शहर",
+  "malvan": "मालवण"
 }

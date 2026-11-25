@@ -7,7 +7,7 @@ export function getProtectedArea(pathname: string): ProtectedArea | undefined {
   if (!hasLocale(routing.locales, locale)) return undefined;
   switch (area) {
     case 'rider':
-      return 'rider';
+      return getRiderArea(action, extra);
     case 'driver':
       return action === 'invite' && !extra ? undefined : 'driver';
     case 'coordinator':
@@ -15,4 +15,8 @@ export function getProtectedArea(pathname: string): ProtectedArea | undefined {
     default:
       return undefined;
   }
+}
+
+function getRiderArea(action: string | undefined, extra: string | undefined) {
+  return action && action !== 'status' && !extra ? undefined : 'rider';
 }

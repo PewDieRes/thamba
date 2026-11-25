@@ -4,7 +4,7 @@ import { ConfirmInvite } from '@ui/driver/confirm-invite';
 export default async function DriverInvitePage() {
   const t = await getTranslations('driver.invite');
   return (
-    <main>
+    <>
       <h1>{t('title')}</h1>
       <p>{t('instructions')}</p>
       <ConfirmInvite
@@ -15,6 +15,6 @@ export default async function DriverInvitePage() {
           missing: t('missing'),
         }}
       />
-    </main>
+    </>
   );
 }
