@@ -1,7 +1,7 @@
-import type commonMessages from '../../../messages/mr/common.json';
+import type { Messages as ThambaMessages } from './messages';
 
 declare module 'next-intl' {
   interface AppConfig {
-    Messages: { common: typeof commonMessages };
+    Messages: ThambaMessages;
   }
 }
