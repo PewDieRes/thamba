@@ -4,10 +4,12 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { createTownId } from '@domain/shared/ids.value-object';
 import { unwrap } from '../../domain/dispatch/booking.fixtures';
 import { messages } from '@interface/i18n/messages';
+import { mapTownOverview } from '@interface/routes/rider-town.mapper';
 import { BookingNotices } from '@ui/rider/booking-notices';
 import { RideForm } from '@ui/rider/ride-form';
 import { TownOverview } from '@ui/rider/town-overview';
 import { expectAccessible, renderScreen } from './rider-accessibility.fixtures';
+import { STAND, TOWN } from '../../application/demo-data.fixtures';
 
 afterEach(cleanup);
 
@@ -20,7 +22,7 @@ test('information-only Town is accessible and has no booking control', async () 
       name="Malvan"
       unavailable={copy.licencePending}
       notices={{ isIllustrative: true, grievance: 'Thamba project desk' }}
-      stands={[{ id: 'stand', name: 'Market Stand', contact: 'Thamba project desk' }]}
+      stands={[{ id: 'stand', name: 'Market Stand', contact: { text: 'Thamba project desk' } }]}
       fares={[{ id: 'fare', route: 'Market → Jetty', day: '₹50', night: '₹65' }]}
     />,
   );
@@ -28,6 +30,40 @@ test('information-only Town is accessible and has no booking control', async () 
   expect(screen.getByRole('table', { name: copy.fares })).toBeTruthy();
   expect(screen.queryByRole('link', { name: copy.book })).toBeNull();
   await expectAccessible(container);
+});
+
+test('shows the localized Coordinator phone on the Town overview', () => {
+  const contact = '+91 98765 43210';
+  const town = mapTownOverview(
+    {
+      townId: TOWN,
+      slug: 'malvan',
+      name: 'Malvan',
+      names: {},
+      grievanceContact: 'Thamba project desk',
+      grievanceContacts: {},
+      capability: { kind: 'information_only', reason: 'licence_missing' },
+      landmarks: [],
+      fares: [],
+      hasIllustrativeFares: false,
+      stands: [
+        {
+          id: STAND,
+          name: 'Market Stand',
+          names: {},
+          coordinatorContact: 'Market Stand desk',
+          coordinatorContacts: { en: contact },
+          pickupLandmarkIds: [],
+        },
+      ],
+    },
+    'en',
+    copy,
+  );
+  renderScreen(<TownOverview {...town} />);
+  expect(screen.getByRole('link', { name: contact }).getAttribute('href')).toBe(
+    'tel:+919876543210',
+  );
 });
 
 test.each(['now', 'later'] as const)('booking form is accessible with %s pickup', async (when) => {

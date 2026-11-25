@@ -6,6 +6,8 @@ import { Town } from '@domain/town/town';
 import { DEMO_STAND, DEMO_TOWN, NOW, QUEUE, TOWN } from './demo-data.fixtures';
 import { createDemo, quoteInput, requestInput, unwrap, type Demo } from './demo.fixtures';
 
+const COORDINATOR_CONTACT = '+919876543210';
+
 async function makeLiveTown(app: Demo) {
   const licence = unwrap(
     createLicence({
@@ -21,7 +23,7 @@ async function makeLiveTown(app: Demo) {
     standId: DEMO_STAND.standId,
     pickupCues: DEMO_STAND.pickupCues,
     neighbourStandIds: DEMO_STAND.neighbourStandIds,
-    coordinatorContact: DEMO_STAND.coordinatorContact,
+    coordinatorContact: COORDINATOR_CONTACT,
   };
   const makeLive = async ({ towns, stands, drivers }: Transaction) => {
     unwrap(await towns.save({ ...DEMO_TOWN, town }, 1));
@@ -59,7 +61,7 @@ test('a licensed live Town quotes and dispatches in its live scope', async () =>
   );
   expect(
     unwrap(await app.getBookingStatusForRider.execute({ bookingId, riderId: quoteInput.riderId })),
-  ).toMatchObject({ status: 'no_driver_found', coordinatorContact: DEMO_STAND.coordinatorContact });
+  ).toMatchObject({ status: 'no_driver_found', coordinatorContact: COORDINATOR_CONTACT });
   expect(unwrap(await app.getTownOverview.execute({ slug: DEMO_TOWN.slug })).capability).toEqual({
     kind: 'information_only',
     reason: 'licence_expired',

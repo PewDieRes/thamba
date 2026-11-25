@@ -39,12 +39,15 @@ test.each(states)('renders accessible %s status', async (status, heading) => {
   const { container } = showStatus({
     status,
     standName: 'River Square Stand',
-    coordinatorContact: 'River Square desk',
+    coordinatorContact: 'River Square desk 1234567',
     matchedDriver: { firstName: 'Asha', vehicleNumber: 'DEMO 01', phone: '+919000000000' },
   });
   expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
   if (status === 'requested') expect(screen.getByText('River Square Stand')).toBeTruthy();
-  if (status === 'no_driver_found') expect(screen.getByText(/River Square desk/)).toBeTruthy();
+  if (status === 'no_driver_found') {
+    expect(screen.getByText(/River Square desk 1234567/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /River Square desk/ })).toBeNull();
+  }
   if (status === 'accepted') {
     expect(screen.getByText('Asha')).toBeTruthy();
     expect(screen.getByText(/DEMO 01/)).toBeTruthy();
@@ -60,17 +63,29 @@ test.each(states)('renders accessible %s status', async (status, heading) => {
   await expectAccessible(container);
 });
 
-test('explains booking unavailability without losing the Coordinator contact', async () => {
-  const { container } = showStatus({
-    status: 'no_driver_found',
-    noDriverFoundReason: 'booking_unavailable',
-    capability: { kind: 'information_only', reason: 'licence_expired' },
-    coordinatorContact: 'River Square desk',
+test.each([
+  ['No driver found', { noDriverFoundReason: 'stands_exhausted' }],
+  [
+    'Booking unavailable: licence expired',
+    {
+      noDriverFoundReason: 'booking_unavailable',
+      capability: { kind: 'information_only', reason: 'licence_expired' },
+    },
+  ],
+] as const)('maps and displays the Coordinator phone for %s', async (heading, outcome) => {
+  const coordinatorContact = '+919876543210';
+  const status = { status: 'no_driver_found', coordinatorContact, ...outcome } as const;
+  const callHref = `tel:${coordinatorContact}`;
+
+  expect(mapRiderStatus(status, 'en', copy).coordinator).toEqual({
+    text: coordinatorContact,
+    callHref,
   });
-  expect(
-    screen.getByRole('heading', { name: 'Booking unavailable: licence expired' }),
-  ).toBeTruthy();
-  expect(screen.getByText(/River Square desk/)).toBeTruthy();
+  const { container } = showStatus(status);
+  expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
+  expect(screen.getByRole('link', { name: coordinatorContact }).getAttribute('href')).toBe(
+    callHref,
+  );
   await expectAccessible(container);
 });
 

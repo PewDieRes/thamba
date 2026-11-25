@@ -6,7 +6,7 @@ import type { RiderStatusView } from '@application/contracts/rider-status-view';
 import { BookingNotices } from '../ui/rider/booking-notices';
 import { BookingStatus } from '../ui/rider/booking-status';
 import type { RiderCopy } from '../ui/rider/rider-copy';
-import { localizeContact } from './rider-display.mapper';
+import { localizeConfiguredContact } from './rider-display.mapper';
 import { isTerminalStatus, mapRiderStatus } from './rider-status.mapper';
 import { postRider } from './rider-api';
 
@@ -37,7 +37,11 @@ export function RiderStatusFlow({ bookingId, locale, copy }: StatusFlowProps) {
       )}
       <BookingNotices
         capability={status?.capability}
-        grievance={localizeContact(locale, status?.grievanceContact, status?.grievanceContacts)}
+        grievance={localizeConfiguredContact(
+          locale,
+          status?.grievanceContact,
+          status?.grievanceContacts,
+        )}
         copy={copy}
       />
     </>

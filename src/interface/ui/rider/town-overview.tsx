@@ -1,4 +1,5 @@
 import { BookingNotices, type NoticeDetails } from './booking-notices';
+import { CoordinatorContact, type CoordinatorContactDetails } from './coordinator-contact';
 import type { RiderCopy } from './rider-copy';
 
 interface FareRow {
@@ -10,7 +11,7 @@ interface FareRow {
 interface StandRow {
   id: string;
   name: string;
-  contact: string;
+  contact: CoordinatorContactDetails;
 }
 
 interface TownOverviewProps {
@@ -61,7 +62,7 @@ function StandList({ stands, copy }: { stands: readonly StandRow[]; copy: RiderC
           <li key={id}>
             <strong>{name}</strong>
             <p>
-              {copy.coordinator} · {contact}
+              {copy.coordinator} · <CoordinatorContact {...contact} />
             </p>
           </li>
         ))}
