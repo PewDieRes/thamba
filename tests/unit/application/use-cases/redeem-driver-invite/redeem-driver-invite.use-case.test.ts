@@ -4,7 +4,7 @@ import { createDemo, unwrap, inviteInput, NEW_SUBJECT, OTHER_SUBJECT } from '../
 test('RedeemDriverInvite applies its Demo Town rules', async () => {
   const app = await createDemo();
   const invite = unwrap(await app.issueDriverInvite.execute(inviteInput));
-  const input = { subject: NEW_SUBJECT, token: invite.token, commandKey: 'redeem' };
+  const input = { subject: NEW_SUBJECT, token: invite.url.split('#')[1], commandKey: 'redeem' };
   expect(await app.redeemDriverInvite.execute(input)).toMatchObject({
     ok: true,
     value: { driverId: inviteInput.driverId, status: 'active' },

@@ -22,7 +22,7 @@ import { Booking } from '@domain/dispatch/booking';
 
 type Fixture = keyof Transaction | 'unitOfWork';
 
-function runLocalSql(input: string): void {
+export function runLocalSql(input: string): void {
   execFileSync(
     'docker',
     [
@@ -61,6 +61,7 @@ export function cleanContractDatabase(): void {
     delete from public.fare_charts where town_id = '${TOWN}';
     delete from public.routes where town_id = '${TOWN}';
     delete from public.stand_neighbours where town_id = '${TOWN}';
+    delete from public.coordinators where town_id = '${TOWN}';
     delete from public.stands where town_id = '${TOWN}';
     delete from public.landmarks where town_id = '${TOWN}';
     delete from public.command_log where town_id = '${TOWN}';

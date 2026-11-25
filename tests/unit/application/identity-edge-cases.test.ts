@@ -19,9 +19,16 @@ import { createDemo, dispatchRide, inviteInput, unwrap } from './demo.fixtures';
 test('concurrent invite redemption commits one binding and a replay recovers the original result', async () => {
   const app = await createDemo();
   const invite = unwrap(await app.issueDriverInvite.execute(inviteInput));
-  expect(await app.issueDriverInvite.execute(inviteInput)).toEqual({ ok: true, value: invite });
+  expect(await app.issueDriverInvite.execute(inviteInput)).toEqual({
+    ok: false,
+    error: { code: 'invite_already_issued' },
+  });
   const subjects = [NEW_SUBJECT, OTHER_SUBJECT];
-  const inputs = subjects.map((subject) => ({ subject, token: invite.token, commandKey: 'bind' }));
+  const inputs = subjects.map((subject) => ({
+    subject,
+    token: invite.url.split('#')[1],
+    commandKey: 'bind',
+  }));
   const results = await Promise.all(inputs.map((value) => app.redeemDriverInvite.execute(value)));
   expect(results.filter((result) => result.ok)).toHaveLength(1);
   const winning = inputs[results.findIndex((result) => result.ok)];
@@ -29,6 +36,11 @@ test('concurrent invite redemption commits one binding and a replay recovers the
   expect(await app.redeemDriverInvite.execute(winning)).toMatchObject({
     ok: true,
     value: { status: 'active' },
+  });
+  unwrap(await app.revokeDriverDevice.execute({ ...inviteInput, commandKey: 'revoke-winner' }));
+  expect(await app.redeemDriverInvite.execute(winning)).toEqual({
+    ok: false,
+    error: { code: 'DEVICE_REVOKED' },
   });
   expect(
     (await app.events()).filter(({ event }) => event.type === 'DriverInviteRedeemed'),
@@ -38,7 +50,7 @@ test('concurrent invite redemption commits one binding and a replay recovers the
 test('binding rejects expired, unknown and out-of-scope invites', async () => {
   const app = await createDemo();
   const invite = unwrap(await app.issueDriverInvite.execute(inviteInput));
-  const input = { subject: NEW_SUBJECT, token: invite.token, commandKey: 'bind' };
+  const input = { subject: NEW_SUBJECT, token: invite.url.split('#')[1], commandKey: 'bind' };
   expect(await app.redeemDriverInvite.execute({ ...input, token: 'unknown' })).toMatchObject({
     ok: false,
     error: { code: 'not_found' },
@@ -106,4 +118,32 @@ test('recovery rejects active reservations and revokes still-issued invites for 
       })),
     )?.value.invite.status,
   ).toBe('revoked');
+});
+
+test('a revoked invite replay fails after rebinding the same Driver at the same instant', async () => {
+  const app = await createDemo();
+  const first = unwrap(await app.issueDriverInvite.execute(inviteInput));
+  const redeem = {
+    subject: NEW_SUBJECT,
+    token: first.url.split('#')[1],
+    commandKey: 'first-binding',
+  };
+  unwrap(await app.redeemDriverInvite.execute(redeem));
+  unwrap(
+    await app.revokeDriverDevice.execute({ ...inviteInput, commandKey: 'revoke-first-binding' }),
+  );
+  const replacement = unwrap(
+    await app.issueDriverInvite.execute({ ...inviteInput, commandKey: 'replacement-invite' }),
+  );
+  unwrap(
+    await app.redeemDriverInvite.execute({
+      ...redeem,
+      token: replacement.url.split('#')[1],
+      commandKey: 'replacement-binding',
+    }),
+  );
+  expect(await app.redeemDriverInvite.execute(redeem)).toEqual({
+    ok: false,
+    error: { code: 'DEVICE_REVOKED' },
+  });
 });
